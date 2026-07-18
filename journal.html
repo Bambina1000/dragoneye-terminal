@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>DragonEye // Trading Journal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Major+Mono+Display&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
@@ -43,7 +43,7 @@
         .glass-panel-3d:hover {
             background: linear-gradient(135deg, rgba(25, 30, 48, 0.4) 0%, rgba(12, 15, 24, 0.5) 100%);
             box-shadow: 0 30px 35px -5px rgba(0, 0, 0, 0.7), 0 15px 15px -5px rgba(0, 0, 0, 0.6);
-            border-top: 1px solid rgba(99, 102, 241, 0.4);
+            border-top: 1px solid rgba(255, 215, 0, 0.4); /* gold accent */
         }
         .sidebar-icon {
             width: 2.5rem;
@@ -55,12 +55,11 @@
             transition: all 0.2s;
         }
         .sidebar-icon:hover { background: rgba(255,255,255,0.05); }
-        .sidebar-icon.active { background: rgba(99,102,241,0.2); color: #818cf8; }
+        .sidebar-icon.active { background: rgba(255,215,0,0.2); color: #ffd700; }
         .stat-card { transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-2px); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* filter chips */
         .chip {
             background: rgba(255,255,255,0.05);
             padding: 0.25rem 0.75rem;
@@ -72,19 +71,74 @@
             transition: all 0.2s;
         }
         .chip.active {
-            background: rgba(99,102,241,0.2);
-            border-color: #818cf8;
-            color: #818cf8;
+            background: rgba(255,215,0,0.2);
+            border-color: #ffd700;
+            color: #ffd700;
         }
         .chip:hover { background: rgba(255,255,255,0.1); }
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: transparent;
+            color: #6b7280;
+            border: 1px solid transparent;
+        }
+        .tab-btn.active {
+            background: rgba(255,215,0,0.15);
+            color: #ffd700;
+            border-color: rgba(255,215,0,0.3);
+        }
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        .gold-text { color: #ffd700; }
+        .gold-border { border-color: rgba(255,215,0,0.3); }
+        .gold-glow { box-shadow: 0 0 20px rgba(255,215,0,0.1); }
+        /* TradingView chart placeholder */
+        .tv-chart-placeholder {
+            height: 300px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+        .coach-bubble {
+            background: rgba(255,215,0,0.05);
+            border-left: 3px solid #ffd700;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .coach-bubble .label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #ffd700;
+            font-weight: 700;
+        }
+        .coach-bubble .text {
+            font-size: 0.75rem;
+            color: #d1d5db;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
-<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-indigo-500/30 select-none">
+<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-gold-500/30 select-none">
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (same as before) -->
     <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
         <a href="/" class="mb-6">
-            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-indigo-500/30" />
+            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gold-500/30" />
         </a>
         <nav class="flex flex-col items-center gap-4">
             <a href="/" class="sidebar-icon text-gray-400 hover:text-white" title="Dashboard">
@@ -102,131 +156,187 @@
 
     <!-- MAIN CONTENT -->
     <div class="flex flex-col flex-grow w-0 overflow-hidden">
+        <!-- Header with gold accent -->
         <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <div>
-                    <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">📓 <span>Trading Journal</span></h1>
+                    <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
+                        <span class="text-gold-400 gold-text">📓</span>
+                        <span>Trading Journal</span>
+                        <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">PRO</span>
+                    </h1>
                     <p class="text-[8px] text-gray-400 tracking-widest uppercase">Track, Review, Improve</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="exportCSV()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest border border-gray-600/50">
                         Export CSV
                     </button>
-                    <button onclick="openAddTradeModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] py-1.5 px-4 rounded-md transition-all uppercase tracking-widest border-t border-indigo-400/30 shadow">
+                    <button onclick="openAddTradeModal()" class="bg-gold-600 hover:bg-gold-500 text-black font-bold text-[10px] py-1.5 px-4 rounded-md transition-all uppercase tracking-widest border-t border-gold-400/30 shadow gold-glow">
                         + Add Trade
                     </button>
                 </div>
             </div>
         </header>
 
+        <!-- Tabs Navigation -->
+        <div class="flex items-center gap-1 px-3 sm:px-6 pt-3 border-b border-white/5">
+            <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" data-tab="coach" onclick="switchTab('coach')">AI Coach</button>
+            <button class="tab-btn" data-tab="replay" onclick="switchTab('replay')">Market Replay</button>
+            <button class="tab-btn" data-tab="backtest" onclick="switchTab('backtest')">Backtester</button>
+        </div>
+
+        <!-- Scrollable Content -->
         <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
 
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="glass-panel-3d p-4 rounded-xl stat-card">
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
-                    <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
+            <!-- ========== DASHBOARD TAB ========== -->
+            <div id="tab-dashboard" class="tab-content">
+                <!-- Stats Grid (same as before) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
+                        <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
+                    </div>
+                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
+                        <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
+                    </div>
+                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
+                        <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
+                    </div>
+                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
+                        <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
+                    </div>
                 </div>
-                <div class="glass-panel-3d p-4 rounded-xl stat-card">
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
-                    <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
+                <!-- Extra stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
+                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Win</p>
+                        <p id="stat_avgwin" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
+                    </div>
+                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
+                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Loss</p>
+                        <p id="stat_avgloss" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
+                    </div>
+                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
+                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Max Drawdown</p>
+                        <p id="stat_drawdown" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
+                    </div>
+                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
+                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Best Trade</p>
+                        <p id="stat_best" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
+                    </div>
                 </div>
-                <div class="glass-panel-3d p-4 rounded-xl stat-card">
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
-                    <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                    <div class="glass-panel p-4 rounded-xl lg:col-span-2 gold-border">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
+                        <div style="position:relative; height:180px;"><canvas id="equityChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl gold-border">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Monthly P&L</h3>
+                        <div style="position:relative; height:180px;"><canvas id="monthlyChart"></canvas></div>
+                    </div>
                 </div>
-                <div class="glass-panel-3d p-4 rounded-xl stat-card">
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
-                    <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
+
+                <!-- Win/Loss Pie + Filter -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div class="glass-panel p-4 rounded-xl md:col-span-1 gold-border">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win/Loss</h3>
+                        <div style="position:relative; height:150px;"><canvas id="pieChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl md:col-span-3 gold-border">
+                        <div class="flex flex-wrap items-center gap-2 mb-3">
+                            <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
+                            <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
+                            <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
+                            <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
+                            <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
+                            <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
+                            <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
+                            <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
+                            <select id="monthFilter" onchange="applyFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
+                                <option value="all">All Months</option>
+                            </select>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-[10px]">
+                                <thead>
+                                    <tr class="text-gray-400 border-b border-white/5">
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Reason</th>
+                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trades_body">
+                                    <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Extra stats -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <div class="glass-panel-3d p-3 rounded-xl stat-card">
-                    <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Win</p>
-                    <p id="stat_avgwin" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
-                </div>
-                <div class="glass-panel-3d p-3 rounded-xl stat-card">
-                    <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Loss</p>
-                    <p id="stat_avgloss" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
-                </div>
-                <div class="glass-panel-3d p-3 rounded-xl stat-card">
-                    <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Max Drawdown</p>
-                    <p id="stat_drawdown" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
-                </div>
-                <div class="glass-panel-3d p-3 rounded-xl stat-card">
-                    <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Best Trade</p>
-                    <p id="stat_best" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
-                </div>
-            </div>
-
-            <!-- Chart Row: Equity + Monthly + Win/Loss Pie -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-                <!-- Equity Curve -->
-                <div class="glass-panel p-4 rounded-xl lg:col-span-2">
-                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
-                    <div style="position:relative; height:180px;">
-                        <canvas id="equityChart"></canvas>
-                    </div>
-                </div>
-                <!-- Monthly Performance -->
-                <div class="glass-panel p-4 rounded-xl">
-                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Monthly P&L</h3>
-                    <div style="position:relative; height:180px;">
-                        <canvas id="monthlyChart"></canvas>
+            <!-- ========== AI COACH TAB ========== -->
+            <div id="tab-coach" class="tab-content hidden">
+                <div class="glass-panel p-6 rounded-xl gold-border">
+                    <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                        <span class="gold-text">🧠</span> AI Coach
+                    </h2>
+                    <p class="text-[11px] text-gray-400 mt-1">Analyses your trade notes and provides feedback to sharpen your edge.</p>
+                    <div id="coach-container" class="mt-4 space-y-3">
+                        <!-- coach insights will be rendered here -->
+                        <div class="text-gray-500 text-sm">Add some trades with notes to get AI insights.</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Win/Loss Pie + Filter -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div class="glass-panel p-4 rounded-xl md:col-span-1">
-                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win/Loss</h3>
-                    <div style="position:relative; height:150px;">
-                        <canvas id="pieChart"></canvas>
+            <!-- ========== MARKET REPLAY TAB ========== -->
+            <div id="tab-replay" class="tab-content hidden">
+                <div class="glass-panel p-6 rounded-xl gold-border">
+                    <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                        <span class="gold-text">📈</span> Market Replay
+                    </h2>
+                    <p class="text-[11px] text-gray-400 mt-1">Click on a trade in the dashboard to load its chart here.</p>
+                    <!-- TradingView Chart placeholder (we will embed real chart later) -->
+                    <div id="replay-chart" class="tv-chart-placeholder mt-4">
+                        Select a trade to replay
                     </div>
-                </div>
-                <div class="glass-panel p-4 rounded-xl md:col-span-3">
-                    <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
-                        <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
-                        <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
-                        <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
-                        <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
-                        <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
-                        <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
-                        <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
-                        <select id="monthFilter" onchange="applyMonthFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
-                            <option value="all">All Months</option>
-                        </select>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-[10px]">
-                            <thead>
-                                <tr class="text-gray-400 border-b border-white/5">
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Notes</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="trades_body">
-                                <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button id="replay-prev" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md">◀ Prev</button>
+                        <button id="replay-next" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md">Next ▶</button>
+                        <span id="replay-info" class="text-xs text-gray-400 self-center">No trade loaded</span>
                     </div>
                 </div>
             </div>
+
+            <!-- ========== BACKTESTER TAB ========== -->
+            <div id="tab-backtest" class="tab-content hidden">
+                <div class="glass-panel p-6 rounded-xl gold-border">
+                    <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+                        <span class="gold-text">⚙️</span> Backtester
+                    </h2>
+                    <p class="text-[11px] text-gray-400 mt-1">Simulate your strategy over historical data.</p>
+                    <div class="mt-4 text-gray-500 text-sm p-4 bg-[#090a0f]/50 rounded-lg border border-white/5">
+                        This feature is coming soon. Define entry/exit rules, select a pair and date range, and run a backtest.
+                    </div>
+                    <!-- You can later add inputs for backtest parameters -->
+                </div>
+            </div>
+
         </main>
     </div>
 
-    <!-- ADD TRADE MODAL -->
+    <!-- ===== ADD TRADE MODAL (unchanged) ===== -->
     <div id="addTradeModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div class="glass-panel w-full max-w-lg rounded-2xl p-6 border border-gray-800/80 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -237,11 +347,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Date</label>
-                        <input type="date" id="trade_date" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" required />
+                        <input type="date" id="trade_date" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" required />
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Pair</label>
-                        <select id="trade_pair" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50">
+                        <select id="trade_pair" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
                             <option value="GBPJPY">GBPJPY</option>
                             <option value="BTCUSD">BTCUSD</option>
                             <option value="EURUSD">EURUSD</option>
@@ -253,33 +363,33 @@
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Direction</label>
-                        <select id="trade_direction" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50">
+                        <select id="trade_direction" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
                             <option value="Long">Long</option>
                             <option value="Short">Short</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Size</label>
-                        <input type="number" step="0.01" id="trade_size" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="0.01" required />
+                        <input type="number" step="0.01" id="trade_size" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="0.01" required />
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Entry Price</label>
-                        <input type="number" step="0.0001" id="trade_entry" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="1.2345" required />
+                        <input type="number" step="0.0001" id="trade_entry" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="1.2345" required />
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Exit Price</label>
-                        <input type="number" step="0.0001" id="trade_exit" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="1.2345" required />
+                        <input type="number" step="0.0001" id="trade_exit" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="1.2345" required />
                     </div>
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">P&L ($)</label>
-                    <input type="number" step="0.01" id="trade_pl" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="0.00" required />
+                    <input type="number" step="0.01" id="trade_pl" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="0.00" required />
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Entry Reason</label>
-                    <select id="trade_entry_reason" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50">
+                    <select id="trade_entry_reason" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
                         <option value="">Select reason</option>
                         <option value="Breakout">Breakout</option>
                         <option value="Pullback">Pullback</option>
@@ -290,11 +400,11 @@
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Notes</label>
-                    <textarea id="trade_notes" rows="2" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="What did you learn?"></textarea>
+                    <textarea id="trade_notes" rows="2" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="What did you learn?"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button type="button" onclick="closeAddTradeModal()" class="text-gray-400 text-xs px-4 py-1.5 rounded-md hover:bg-white/5">Cancel</button>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-1.5 rounded-md uppercase tracking-widest shadow">Save Trade</button>
+                    <button type="submit" class="bg-gold-600 hover:bg-gold-500 text-black font-bold text-xs px-4 py-1.5 rounded-md uppercase tracking-widest shadow">Save Trade</button>
                 </div>
             </form>
         </div>
@@ -306,6 +416,8 @@
         let filteredTrades = [];
         let currentFilter = 'all';
         let chartInstances = {};
+        let currentReplayIndex = -1;
+        let replayTrades = [];
 
         // ---------- LOCAL STORAGE ----------
         function loadTrades() {
@@ -324,6 +436,7 @@
             populateMonthFilter();
             applyFilter();
             renderAll();
+            updateCoach();
         }
 
         function saveTrades() {
@@ -354,10 +467,6 @@
             applyFilter();
         }
 
-        function applyMonthFilter() {
-            applyFilter();
-        }
-
         function applyFilter() {
             const monthFilter = document.getElementById('monthFilter').value;
             let filtered = trades;
@@ -374,6 +483,11 @@
             renderTable();
             renderStats();
             renderCharts();
+            // update replay list for market replay
+            replayTrades = filteredTrades;
+            if (currentReplayIndex >= replayTrades.length) currentReplayIndex = replayTrades.length - 1;
+            if (currentReplayIndex < 0 && replayTrades.length > 0) currentReplayIndex = 0;
+            updateReplayInfo();
         }
 
         // ---------- RENDER ----------
@@ -389,10 +503,8 @@
             const avgWin = wins ? (trades.filter(t => t.pl > 0).reduce((s, t) => s + t.pl, 0) / wins) : 0;
             const avgLoss = losses ? (trades.filter(t => t.pl < 0).reduce((s, t) => s + t.pl, 0) / losses) : 0;
             const best = trades.length ? Math.max(...trades.map(t => t.pl)) : 0;
-            const worst = trades.length ? Math.min(...trades.map(t => t.pl)) : 0;
-            // simple drawdown: cumulative min
             let cum = 0, maxCum = 0, drawdown = 0;
-            trades.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
+            trades.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
                 cum += t.pl;
                 if (cum > maxCum) maxCum = cum;
                 if (cum - maxCum < drawdown) drawdown = cum - maxCum;
@@ -418,7 +530,7 @@
             let html = '';
             sorted.forEach(t => {
                 const plClass = t.pl > 0 ? 'text-emerald-400' : (t.pl < 0 ? 'text-rose-400' : 'text-gray-400');
-                html += `<tr class="border-b border-white/5 hover:bg-white/5">
+                html += `<tr class="border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="selectReplay(${t.id})">
                     <td class="py-2">${t.date}</td>
                     <td class="py-2 font-bold">${t.pair}</td>
                     <td class="py-2 ${t.direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}">${t.direction}</td>
@@ -428,7 +540,7 @@
                     <td class="py-2 font-bold ${plClass}">${t.pl > 0 ? '+' : ''}${t.pl}</td>
                     <td class="py-2 text-gray-400 text-[10px]">${t.entryReason || ''} ${t.notes || ''}</td>
                     <td class="py-2">
-                        <button onclick="deleteTrade(${t.id})" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold">Delete</button>
+                        <button onclick="event.stopPropagation(); deleteTrade(${t.id})" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold">Delete</button>
                     </td>
                 </tr>`;
             });
@@ -437,7 +549,6 @@
 
         // ---------- CHARTS ----------
         function renderCharts() {
-            // Equity (using all trades for cumulative)
             const sortedAll = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
             const labelsEq = sortedAll.map(t => t.date);
             let cum = 0;
@@ -452,18 +563,17 @@
                     datasets: [{
                         label: 'Equity',
                         data: labelsEq.length ? eqData : [0],
-                        borderColor: '#818cf8',
-                        backgroundColor: 'rgba(99,102,241,0.1)',
+                        borderColor: '#ffd700',
+                        backgroundColor: 'rgba(255,215,0,0.1)',
                         fill: true,
                         tension: 0.2,
                         pointRadius: 2,
-                        pointBackgroundColor: '#818cf8',
+                        pointBackgroundColor: '#ffd700',
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
 
-            // Monthly bar chart (using filtered trades)
             const months = {};
             filteredTrades.forEach(t => {
                 const key = t.date.substring(0,7);
@@ -485,18 +595,16 @@
                     datasets: [{
                         label: 'P&L',
                         data: monthData.length ? monthData : [0],
-                        backgroundColor: monthData.map(v => v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(244,63,94,0.7)'),
-                        borderColor: monthData.map(v => v >= 0 ? '#10b981' : '#f43f5e'),
+                        backgroundColor: monthData.map(v => v >= 0 ? 'rgba(255,215,0,0.7)' : 'rgba(244,63,94,0.7)'),
+                        borderColor: monthData.map(v => v >= 0 ? '#ffd700' : '#f43f5e'),
                         borderWidth: 1,
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { display: false } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
             });
 
-            // Pie chart
             const wins = filteredTrades.filter(t => t.pl > 0).length;
             const losses = filteredTrades.filter(t => t.pl < 0).length;
-
             const ctxPie = document.getElementById('pieChart').getContext('2d');
             if (chartInstances.pie) chartInstances.pie.destroy();
             chartInstances.pie = new Chart(ctxPie, {
@@ -505,8 +613,8 @@
                     labels: ['Wins', 'Losses'],
                     datasets: [{
                         data: [wins, losses],
-                        backgroundColor: ['rgba(16,185,129,0.7)', 'rgba(244,63,94,0.7)'],
-                        borderColor: ['#10b981', '#f43f5e'],
+                        backgroundColor: ['rgba(255,215,0,0.7)', 'rgba(244,63,94,0.7)'],
+                        borderColor: ['#ffd700', '#f43f5e'],
                         borderWidth: 1,
                     }]
                 },
@@ -516,7 +624,103 @@
 
         function renderAll() {
             populateMonthFilter();
-            applyFilter(); // calls renderStats, renderTable, renderCharts
+            applyFilter();
+        }
+
+        // ---------- COACH ----------
+        function updateCoach() {
+            const container = document.getElementById('coach-container');
+            if (trades.length === 0) {
+                container.innerHTML = `<div class="text-gray-500 text-sm">No trades yet. Add some trades with notes to get AI insights.</div>`;
+                return;
+            }
+            // Simple sentiment analysis on notes
+            const notes = trades.filter(t => t.notes).map(t => t.notes);
+            if (notes.length === 0) {
+                container.innerHTML = `<div class="text-gray-500 text-sm">Add notes to your trades for the AI to analyse.</div>`;
+                return;
+            }
+            // Basic mock analysis: count positive vs negative words
+            const positiveWords = ['good', 'great', 'excellent', 'breakout', 'support', 'resistance', 'trend', 'confident'];
+            const negativeWords = ['bad', 'terrible', 'missed', 'mistake', 'panic', 'fear', 'greed', 'frustrating'];
+            let posCount = 0, negCount = 0;
+            notes.forEach(n => {
+                const words = n.toLowerCase().split(/\s+/);
+                words.forEach(w => {
+                    if (positiveWords.some(p => w.includes(p))) posCount++;
+                    if (negativeWords.some(p => w.includes(p))) negCount++;
+                });
+            });
+            const total = posCount + negCount || 1;
+            const confidence = (posCount / total * 100).toFixed(0);
+            const sentiment = confidence > 60 ? 'Confident & disciplined' : (confidence < 40 ? 'Cautious / uncertain' : 'Balanced');
+
+            let html = `
+                <div class="coach-bubble">
+                    <div class="label">🧠 Overall Mindset</div>
+                    <div class="text">Your notes suggest a <strong>${sentiment}</strong> approach (confidence score: ${confidence}%).</div>
+                </div>
+                <div class="coach-bubble">
+                    <div class="label">📊 Win/Loss Sentiment</div>
+                    <div class="text">Winning trades: ${trades.filter(t => t.pl > 0).length} | Losing: ${trades.filter(t => t.pl < 0).length}</div>
+                </div>
+                <div class="coach-bubble">
+                    <div class="label">💡 Tip</div>
+                    <div class="text">${confidence > 60 ? 'Keep up the discipline – your notes reflect a strong mental game.' : 'Consider reviewing your losing trades for emotional patterns.'}</div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // ---------- MARKET REPLAY ----------
+        function selectReplay(id) {
+            const idx = replayTrades.findIndex(t => t.id === id);
+            if (idx !== -1) {
+                currentReplayIndex = idx;
+                updateReplayInfo();
+                loadReplayChart(replayTrades[idx]);
+            }
+        }
+
+        function updateReplayInfo() {
+            const info = document.getElementById('replay-info');
+            if (currentReplayIndex >= 0 && currentReplayIndex < replayTrades.length) {
+                const t = replayTrades[currentReplayIndex];
+                info.innerText = `${t.pair} | ${t.date} | ${t.direction} | P&L: ${t.pl}`;
+            } else {
+                info.innerText = 'No trade loaded';
+            }
+        }
+
+        function loadReplayChart(trade) {
+            const container = document.getElementById('replay-chart');
+            // For now, just display a placeholder with trade details
+            container.innerHTML = `
+                <div class="text-center">
+                    <p class="text-xs text-gray-400">Replay for ${trade.pair} on ${trade.date}</p>
+                    <p class="text-sm text-white mt-2">Entry: ${trade.entry} | Exit: ${trade.exit}</p>
+                    <p class="text-xs text-gray-400 mt-1">Reason: ${trade.entryReason || 'N/A'}</p>
+                    <p class="text-xs text-gray-400">Notes: ${trade.notes || '—'}</p>
+                    <div class="mt-3 text-xs text-gray-500">(TradingView chart integration coming soon)</div>
+                </div>
+            `;
+            // In future, embed TradingView widget with symbol and date range
+        }
+
+        function replayPrev() {
+            if (currentReplayIndex > 0) {
+                currentReplayIndex--;
+                updateReplayInfo();
+                loadReplayChart(replayTrades[currentReplayIndex]);
+            }
+        }
+
+        function replayNext() {
+            if (currentReplayIndex < replayTrades.length - 1) {
+                currentReplayIndex++;
+                updateReplayInfo();
+                loadReplayChart(replayTrades[currentReplayIndex]);
+            }
         }
 
         // ---------- CRUD ----------
@@ -552,6 +756,7 @@
             trades.push(newTrade);
             saveTrades();
             renderAll();
+            updateCoach();
             closeAddTradeModal();
         }
 
@@ -560,6 +765,7 @@
                 trades = trades.filter(t => t.id !== id);
                 saveTrades();
                 renderAll();
+                updateCoach();
             }
         }
 
@@ -589,8 +795,33 @@
         }
         window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAddTradeModal(); });
 
+        // ---------- TABS ----------
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            const content = document.getElementById(`tab-${tabId}`);
+            if (content) content.classList.remove('hidden');
+            const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (btn) btn.classList.add('active');
+            // Re-render charts if switching to dashboard
+            if (tabId === 'dashboard') {
+                setTimeout(() => renderCharts(), 100);
+            }
+        }
+
         // ---------- INIT ----------
-        window.onload = loadTrades;
+        window.onload = function() {
+            loadTrades();
+            // Replay button listeners
+            document.getElementById('replay-prev').addEventListener('click', replayPrev);
+            document.getElementById('replay-next').addEventListener('click', replayNext);
+            // Set default tab
+            switchTab('dashboard');
+        };
+
+        // additional: when filtering, also update replay list
+        window.applyFilter = applyFilter;
     </script>
+
 </body>
 </html>
