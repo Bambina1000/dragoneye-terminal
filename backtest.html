@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
-    <title>NEKTA DL // Replay Backtester Pro</title>
+    <title>NEKTA DL // Replay Backtester</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Candlestick plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
+        /* Same as before – copy from previous style block */
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
             background-color: #050608;
@@ -179,14 +181,6 @@
         #replayChart {
             height: 400px;
         }
-        .order-badge {
-            font-size: 0.6rem;
-            font-weight: 700;
-            padding: 0.1rem 0.4rem;
-            border-radius: 9999px;
-            background: rgba(212,168,67,0.15);
-            color: #d4a843;
-        }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-row">
@@ -196,6 +190,7 @@
 
     <!-- Sidebar (mobile) -->
     <aside id="sidebarMobile" class="sidebar-mobile flex flex-col">
+        <!-- ... same as before ... -->
         <div class="flex items-center justify-between mb-6">
             <img src="/static/logo.jpg" alt="NEKTA DL Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
             <button onclick="closeSidebar()" class="text-gray-400 hover:text-white text-xl">✕</button>
@@ -231,6 +226,7 @@
 
     <!-- Sidebar (desktop) -->
     <aside id="sidebarDesktop" class="sidebar-desktop w-48 glass-panel border-r border-white/5 h-full flex flex-col py-4 z-40 flex-shrink-0">
+        <!-- same as mobile but without toggle -->
         <a href="/" class="flex items-center justify-center mb-6">
             <img src="/static/logo.jpg" alt="NEKTA DL Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
         </a>
@@ -274,21 +270,19 @@
                         <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
                             <span class="gold-text">📊</span>
                             <span>Replay Backtester</span>
-                            <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">PRO</span>
+                            <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">MANUAL</span>
                         </h1>
-                        <p class="text-[8px] text-gray-400 tracking-widest uppercase">Advanced order types & position sizing</p>
+                        <p class="text-[8px] text-gray-400 tracking-widest uppercase">Simulate trades bar‑by‑bar</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <select id="symbolSelect" class="form-input w-28 text-xs" onchange="loadChartData()">
+                <div class="flex items-center gap-2">
+                    <select id="symbolSelect" class="form-input w-32 text-xs" onchange="loadChartData()">
                         <option value="GBPJPY=X">GBPJPY</option>
                         <option value="EURUSD=X">EURUSD</option>
                         <option value="BTC-USD">BTCUSD</option>
                         <option value="GC=F">Gold</option>
                         <option value="ES=F">S&P 500</option>
                     </select>
-                    <input type="date" id="startDate" class="form-input w-28 text-xs" />
-                    <input type="date" id="endDate" class="form-input w-28 text-xs" />
                     <button onclick="loadChartData()" class="gold-bg hover:bg-gold-600 text-black font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest shadow">
                         Load
                     </button>
@@ -326,63 +320,25 @@
                         <!-- Trading Controls -->
                         <div class="glass-panel-3d p-3 rounded-xl gold-border">
                             <h4 class="text-[8px] font-bold uppercase tracking-widest text-gold-400 mb-2">Trading</h4>
-                            <div class="flex flex-wrap gap-2 mb-2">
+                            <div class="flex flex-wrap gap-2">
                                 <button onclick="enterTrade('Long')" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-xs px-3 py-1 rounded-md hover:bg-emerald-600/30 transition">Buy</button>
                                 <button onclick="enterTrade('Short')" class="bg-rose-600/20 text-rose-400 border border-rose-500/30 text-xs px-3 py-1 rounded-md hover:bg-rose-600/30 transition">Sell</button>
-                                <button onclick="cancelPendingOrder()" class="bg-gray-600/20 text-gray-400 border border-gray-500/30 text-xs px-3 py-1 rounded-md hover:bg-gray-600/30 transition">Cancel</button>
+                                <button onclick="exitTrade()" class="bg-gray-600/20 text-gray-400 border border-gray-500/30 text-xs px-3 py-1 rounded-md hover:bg-gray-600/30 transition">Close</button>
                             </div>
                             <div class="grid grid-cols-2 gap-2 mt-2">
                                 <div>
-                                    <label class="form-label text-[7px]">Order Type</label>
-                                    <select id="orderType" class="form-input text-xs" onchange="toggleOrderFields()">
-                                        <option value="market">Market</option>
-                                        <option value="limit">Limit</option>
-                                        <option value="stop">Stop</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="form-label text-[7px]">Price (for Limit/Stop)</label>
-                                    <input type="number" id="orderPrice" class="form-input text-xs" placeholder="0.0000" step="0.0001" />
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <label class="form-label text-[7px]">SL %</label>
+                                    <label class="text-[7px] text-gray-400 font-bold uppercase">SL %</label>
                                     <input type="number" id="slPercent" class="form-input text-xs" value="1.0" step="0.1" />
                                 </div>
                                 <div>
-                                    <label class="form-label text-[7px]">TP %</label>
+                                    <label class="text-[7px] text-gray-400 font-bold uppercase">TP %</label>
                                     <input type="number" id="tpPercent" class="form-input text-xs" value="2.0" step="0.1" />
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <label class="form-label text-[7px]">Size Type</label>
-                                    <select id="sizeType" class="form-input text-xs" onchange="toggleSizeFields()">
-                                        <option value="fixed">Fixed Lot</option>
-                                        <option value="risk">Risk %</option>
-                                    </select>
-                                </div>
-                                <div id="sizeFieldContainer">
-                                    <label class="form-label text-[7px]">Lot Size</label>
-                                    <input type="number" id="lotSize" class="form-input text-xs" value="1.0" step="0.01" />
-                                </div>
-                                <div id="riskFieldContainer" style="display:none;">
-                                    <label class="form-label text-[7px]">Risk %</label>
-                                    <input type="number" id="riskPercent" class="form-input text-xs" value="1.0" step="0.1" />
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2 mt-2">
-                                <input type="checkbox" id="trailingStop" onchange="toggleTrailing()" />
-                                <label class="text-[7px] text-gray-400">Trailing Stop</label>
-                                <input type="number" id="trailingDistance" class="form-input text-xs w-16" value="0.5" step="0.1" disabled />
-                                <span class="text-[7px] text-gray-400">%</span>
                             </div>
                             <div class="mt-2 flex items-center gap-2">
                                 <span class="text-[8px] text-gray-400">Position:</span>
                                 <span id="positionStatus" class="text-xs font-bold text-gray-300">None</span>
                             </div>
-                            <div id="pendingOrderStatus" class="text-[8px] text-gray-400 mt-1"></div>
                         </div>
 
                         <!-- Stats -->
@@ -419,8 +375,7 @@
         let currentBarIndex = 0;
         let replayChartInstance = null;
         let trades = [];
-        let currentPosition = null;
-        let pendingOrder = null;
+        let currentPosition = null; // { entryPrice, direction, entryBarIndex, sl, tp, size }
 
         // ---------- Session Management ----------
         function loadSessions() {
@@ -496,7 +451,6 @@
             document.getElementById('symbolSelect').value = session.pair;
             trades = session.trades || [];
             currentPosition = null;
-            pendingOrder = null;
             renderSessionList();
             updateStats();
             updateTradeLog();
@@ -504,29 +458,15 @@
         }
 
         // ---------- Chart Data ----------
-        function getStartDate() {
-            return document.getElementById('startDate').value;
-        }
-
-        function getEndDate() {
-            return document.getElementById('endDate').value;
-        }
-
         async function loadChartData() {
             const symbol = document.getElementById('symbolSelect').value;
-            const start = getStartDate();
-            const end = getEndDate();
-            if (!start || !end) {
-                alert('Please select both start and end dates.');
-                return;
-            }
             const session = sessions.find(s => s.id === currentSessionId);
             if (session) {
                 session.pair = symbol;
                 saveSessions();
             }
             try {
-                const res = await fetch(`/chart/data?symbol=${symbol}&start=${start}&end=${end}`);
+                const res = await fetch(`/chart/data?symbol=${symbol}&start=${getStartDate()}&end=${getEndDate()}`);
                 const data = await res.json();
                 if (data.error) {
                     alert('Error loading chart data: ' + data.error);
@@ -542,14 +482,19 @@
                 document.getElementById('timeSlider').value = 0;
                 drawCandlestickChart();
                 updateSliderLabels();
-                pendingOrder = null;
-                currentPosition = null;
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-                document.getElementById('pendingOrderStatus').innerText = '';
             } catch (e) {
                 alert('Error loading chart data: ' + e.message);
             }
+        }
+
+        function getStartDate() {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() - 1);
+            return d.toISOString().split('T')[0];
+        }
+
+        function getEndDate() {
+            return new Date().toISOString().split('T')[0];
         }
 
         // ---------- Candlestick Chart ----------
@@ -557,7 +502,9 @@
             const ctx = document.getElementById('replayChart').getContext('2d');
             if (replayChartInstance) replayChartInstance.destroy();
 
+            // Prepare data up to current bar index
             const visibleData = chartData.slice(0, currentBarIndex + 1);
+            const labels = visibleData.map(d => d.time);
             const ohlc = visibleData.map(d => ({
                 x: d.time,
                 o: d.open,
@@ -624,7 +571,6 @@
         function updateReplayPosition(value) {
             currentBarIndex = parseInt(value);
             drawCandlestickChart();
-            checkPendingOrderExecution();
             checkTradeExit();
         }
 
@@ -636,55 +582,7 @@
             document.getElementById('sliderIndexLabel').innerText = `${idx+1} / ${total}`;
         }
 
-        // ---------- Advanced Order Logic ----------
-        function toggleOrderFields() {
-            const type = document.getElementById('orderType').value;
-            const priceInput = document.getElementById('orderPrice');
-            if (type === 'market') {
-                priceInput.disabled = true;
-                priceInput.value = '';
-            } else {
-                priceInput.disabled = false;
-                if (chartData.length > 0 && currentBarIndex < chartData.length) {
-                    const close = chartData[currentBarIndex].close;
-                    priceInput.value = close.toFixed(4);
-                }
-            }
-        }
-
-        function toggleSizeFields() {
-            const sizeType = document.getElementById('sizeType').value;
-            document.getElementById('sizeFieldContainer').style.display = sizeType === 'fixed' ? 'block' : 'none';
-            document.getElementById('riskFieldContainer').style.display = sizeType === 'risk' ? 'block' : 'none';
-        }
-
-        function toggleTrailing() {
-            const checked = document.getElementById('trailingStop').checked;
-            document.getElementById('trailingDistance').disabled = !checked;
-        }
-
-        function cancelPendingOrder() {
-            if (pendingOrder) {
-                pendingOrder = null;
-                document.getElementById('pendingOrderStatus').innerText = '';
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-            }
-        }
-
-        function calculatePositionSize(entryPrice, slPrice, equity) {
-            const sizeType = document.getElementById('sizeType').value;
-            if (sizeType === 'fixed') {
-                return parseFloat(document.getElementById('lotSize').value) || 1;
-            } else {
-                const riskPercent = parseFloat(document.getElementById('riskPercent').value) || 1;
-                const riskAmount = equity * (riskPercent / 100);
-                const riskPerUnit = Math.abs(entryPrice - slPrice);
-                if (riskPerUnit === 0) return 1;
-                return riskAmount / riskPerUnit;
-            }
-        }
-
+        // ---------- Trading ----------
         function enterTrade(direction) {
             if (currentPosition) {
                 alert('You already have an open position. Close it first.');
@@ -694,206 +592,25 @@
                 alert('No data loaded.');
                 return;
             }
-            const orderType = document.getElementById('orderType').value;
+            const price = chartData[currentBarIndex].close;
             const slPercent = parseFloat(document.getElementById('slPercent').value) / 100;
             const tpPercent = parseFloat(document.getElementById('tpPercent').value) / 100;
             if (isNaN(slPercent) || isNaN(tpPercent) || slPercent <= 0 || tpPercent <= 0) {
                 alert('SL and TP must be positive numbers.');
                 return;
             }
-
-            const currentPrice = chartData[currentBarIndex].close;
-            let entryPrice = currentPrice;
-            let orderPrice = null;
-            let isPending = false;
-
-            if (orderType === 'market') {
-                entryPrice = currentPrice;
-            } else {
-                const priceInput = document.getElementById('orderPrice');
-                const limitStopPrice = parseFloat(priceInput.value);
-                if (isNaN(limitStopPrice) || limitStopPrice <= 0) {
-                    alert('Please enter a valid price for Limit/Stop order.');
-                    return;
-                }
-                orderPrice = limitStopPrice;
-                if (orderType === 'limit') {
-                    if ((direction === 'Long' && limitStopPrice <= currentPrice) || (direction === 'Short' && limitStopPrice >= currentPrice)) {
-                        entryPrice = limitStopPrice;
-                    } else {
-                        isPending = true;
-                    }
-                } else if (orderType === 'stop') {
-                    if ((direction === 'Long' && limitStopPrice >= currentPrice) || (direction === 'Short' && limitStopPrice <= currentPrice)) {
-                        isPending = true;
-                    } else {
-                        isPending = true;
-                    }
-                }
-            }
-
-            const slPrice = direction === 'Long' ? entryPrice * (1 - slPercent) : entryPrice * (1 + slPercent);
-            const tpPrice = direction === 'Long' ? entryPrice * (1 + tpPercent) : entryPrice * (1 - tpPercent);
-
-            const equity = getCurrentEquity();
-            const size = calculatePositionSize(entryPrice, slPrice, equity);
-
-            if (isPending) {
-                pendingOrder = {
-                    type: orderType,
-                    price: orderPrice,
-                    direction: direction,
-                    sl: slPrice,
-                    tp: tpPrice,
-                    size: size,
-                    entryBarIndex: currentBarIndex,
-                    entryPrice: entryPrice
-                };
-                document.getElementById('pendingOrderStatus').innerText = `Pending ${orderType} ${direction} @ ${orderPrice.toFixed(4)}`;
-                document.getElementById('positionStatus').innerText = `Pending ${direction}`;
-                document.getElementById('positionStatus').className = `text-xs font-bold ${direction === 'Long' ? 'text-yellow-400' : 'text-yellow-400'}`;
-                return;
-            }
-
+            const sl = direction === 'Long' ? price * (1 - slPercent) : price * (1 + slPercent);
+            const tp = direction === 'Long' ? price * (1 + tpPercent) : price * (1 - tpPercent);
             currentPosition = {
                 direction: direction,
-                entryPrice: entryPrice,
+                entryPrice: price,
                 entryBarIndex: currentBarIndex,
-                sl: slPrice,
-                tp: tpPrice,
-                size: size,
-                orderType: orderType,
-                entryOrderPrice: entryPrice,
-                trailingStop: document.getElementById('trailingStop').checked,
-                trailingDistance: parseFloat(document.getElementById('trailingDistance').value) / 100,
-                highestPrice: entryPrice,
-                lowestPrice: entryPrice
+                sl: sl,
+                tp: tp,
+                size: 1 // fixed for now
             };
-            document.getElementById('positionStatus').innerText = `${direction} @ ${entryPrice.toFixed(4)}`;
+            document.getElementById('positionStatus').innerText = `${direction} @ ${price.toFixed(4)}`;
             document.getElementById('positionStatus').className = `text-xs font-bold ${direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`;
-            document.getElementById('pendingOrderStatus').innerText = '';
-        }
-
-        function checkPendingOrderExecution() {
-            if (!pendingOrder) return;
-            const currentBar = chartData[currentBarIndex];
-            const high = currentBar.high;
-            const low = currentBar.low;
-            let executed = false;
-            let executionPrice = null;
-
-            if (pendingOrder.direction === 'Long') {
-                if (pendingOrder.type === 'limit' && low <= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                } else if (pendingOrder.type === 'stop' && high >= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                }
-            } else {
-                if (pendingOrder.type === 'limit' && high >= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                } else if (pendingOrder.type === 'stop' && low <= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                }
-            }
-
-            if (executed) {
-                currentPosition = {
-                    direction: pendingOrder.direction,
-                    entryPrice: executionPrice,
-                    entryBarIndex: currentBarIndex,
-                    sl: pendingOrder.sl,
-                    tp: pendingOrder.tp,
-                    size: pendingOrder.size,
-                    orderType: pendingOrder.type,
-                    entryOrderPrice: pendingOrder.price,
-                    trailingStop: document.getElementById('trailingStop').checked,
-                    trailingDistance: parseFloat(document.getElementById('trailingDistance').value) / 100,
-                    highestPrice: executionPrice,
-                    lowestPrice: executionPrice
-                };
-                pendingOrder = null;
-                document.getElementById('pendingOrderStatus').innerText = '';
-                document.getElementById('positionStatus').innerText = `${currentPosition.direction} @ ${executionPrice.toFixed(4)}`;
-                document.getElementById('positionStatus').className = `text-xs font-bold ${currentPosition.direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`;
-            }
-        }
-
-        function checkTradeExit() {
-            if (!currentPosition) return;
-            const currentBar = chartData[currentBarIndex];
-            const high = currentBar.high;
-            const low = currentBar.low;
-            let exitPrice = null;
-            let exitReason = '';
-
-            if (currentPosition.trailingStop) {
-                if (currentPosition.direction === 'Long') {
-                    if (high > currentPosition.highestPrice) currentPosition.highestPrice = high;
-                    const trailingStopPrice = currentPosition.highestPrice * (1 - currentPosition.trailingDistance);
-                    if (trailingStopPrice > currentPosition.sl) {
-                        currentPosition.sl = trailingStopPrice;
-                    }
-                } else {
-                    if (low < currentPosition.lowestPrice) currentPosition.lowestPrice = low;
-                    const trailingStopPrice = currentPosition.lowestPrice * (1 + currentPosition.trailingDistance);
-                    if (trailingStopPrice < currentPosition.sl) {
-                        currentPosition.sl = trailingStopPrice;
-                    }
-                }
-            }
-
-            if (currentPosition.direction === 'Long') {
-                if (low <= currentPosition.sl) {
-                    exitPrice = currentPosition.sl;
-                    exitReason = 'Stop Loss';
-                } else if (high >= currentPosition.tp) {
-                    exitPrice = currentPosition.tp;
-                    exitReason = 'Take Profit';
-                }
-            } else {
-                if (high >= currentPosition.sl) {
-                    exitPrice = currentPosition.sl;
-                    exitReason = 'Stop Loss';
-                } else if (low <= currentPosition.tp) {
-                    exitPrice = currentPosition.tp;
-                    exitReason = 'Take Profit';
-                }
-            }
-
-            if (exitPrice !== null) {
-                const pnl = currentPosition.direction === 'Long' ?
-                    (exitPrice - currentPosition.entryPrice) * currentPosition.size :
-                    (currentPosition.entryPrice - exitPrice) * currentPosition.size;
-                const trade = {
-                    entryBarIndex: currentPosition.entryBarIndex,
-                    exitBarIndex: currentBarIndex,
-                    entryPrice: currentPosition.entryPrice,
-                    exitPrice: exitPrice,
-                    direction: currentPosition.direction,
-                    size: currentPosition.size,
-                    pl: pnl,
-                    exitReason: exitReason,
-                    orderType: currentPosition.orderType || 'market'
-                };
-                const session = sessions.find(s => s.id === currentSessionId);
-                if (session) {
-                    session.trades.push(trade);
-                    session.balance += pnl;
-                    session.equity.push(session.balance);
-                    saveSessions();
-                }
-                trades = session ? session.trades : [];
-                currentPosition = null;
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-                updateStats();
-                updateTradeLog();
-                renderSessionList();
-            }
         }
 
         function exitTrade() {
@@ -913,8 +630,7 @@
                 direction: currentPosition.direction,
                 size: currentPosition.size,
                 pl: pnl,
-                exitReason: 'Manual',
-                orderType: currentPosition.orderType || 'market'
+                exitReason: 'Manual'
             };
             const session = sessions.find(s => s.id === currentSessionId);
             if (session) {
@@ -932,12 +648,50 @@
             renderSessionList();
         }
 
-        // ---------- Stats ----------
-        function getCurrentEquity() {
-            const session = sessions.find(s => s.id === currentSessionId);
-            return session ? session.balance : 10000;
+        function checkTradeExit() {
+            if (!currentPosition) return;
+            const currentPrice = chartData[currentBarIndex].close;
+            let hitSL = false, hitTP = false;
+            if (currentPosition.direction === 'Long') {
+                if (currentPrice <= currentPosition.sl) hitSL = true;
+                else if (currentPrice >= currentPosition.tp) hitTP = true;
+            } else {
+                if (currentPrice >= currentPosition.sl) hitSL = true;
+                else if (currentPrice <= currentPosition.tp) hitTP = true;
+            }
+            if (hitSL || hitTP) {
+                const exitPrice = currentPrice;
+                const pnl = currentPosition.direction === 'Long' ?
+                    (exitPrice - currentPosition.entryPrice) * currentPosition.size :
+                    (currentPosition.entryPrice - exitPrice) * currentPosition.size;
+                const trade = {
+                    entryBarIndex: currentPosition.entryBarIndex,
+                    exitBarIndex: currentBarIndex,
+                    entryPrice: currentPosition.entryPrice,
+                    exitPrice: exitPrice,
+                    direction: currentPosition.direction,
+                    size: currentPosition.size,
+                    pl: pnl,
+                    exitReason: hitSL ? 'Stop Loss' : 'Take Profit'
+                };
+                const session = sessions.find(s => s.id === currentSessionId);
+                if (session) {
+                    session.trades.push(trade);
+                    session.balance += pnl;
+                    session.equity.push(session.balance);
+                    saveSessions();
+                }
+                trades = session ? session.trades : [];
+                currentPosition = null;
+                document.getElementById('positionStatus').innerText = 'None';
+                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
+                updateStats();
+                updateTradeLog();
+                renderSessionList();
+            }
         }
 
+        // ---------- Stats ----------
         function updateStats() {
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
@@ -970,14 +724,13 @@
                 return;
             }
             const reversed = [...session.trades].reverse();
-            container.innerHTML = reversed.map(t => {
-                const orderLabel = t.orderType ? `<span class="order-badge">${t.orderType}</span>` : '';
-                return `<div class="flex justify-between text-[9px] border-b border-white/5 py-0.5">
-                    <span>${t.direction} @ ${t.entryPrice.toFixed(4)} ${orderLabel}</span>
+            container.innerHTML = reversed.map(t => `
+                <div class="flex justify-between text-[9px] border-b border-white/5 py-0.5">
+                    <span>${t.direction} @ ${t.entryPrice.toFixed(4)}</span>
                     <span class="${t.pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.pl >= 0 ? '+' : ''}${t.pl.toFixed(2)}</span>
                     <span class="text-gray-500">${t.exitReason || 'Manual'}</span>
-                </div>`;
-            }).join('');
+                </div>
+            `).join('');
         }
 
         // ---------- Sidebar toggle ----------
@@ -996,20 +749,8 @@
 
         // ---------- Init ----------
         window.onload = function() {
-            const now = new Date();
-            const fiveYearsAgo = new Date(now);
-            fiveYearsAgo.setFullYear(now.getFullYear() - 5);
-            document.getElementById('startDate').value = fiveYearsAgo.toISOString().split('T')[0];
-            document.getElementById('endDate').value = now.toISOString().split('T')[0];
-            toggleOrderFields();
-            toggleSizeFields();
             loadSessions();
         };
-
-        // expose functions for inline onclick
-        window.enterTrade = enterTrade;
-        window.cancelPendingOrder = cancelPendingOrder;
-        window.exitTrade = exitTrade;
     </script>
 
 </body>
