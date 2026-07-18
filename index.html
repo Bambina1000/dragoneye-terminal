@@ -9,35 +9,29 @@
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background-color: #050608;
-            background-image: url('/static/bg.jpg');
-            background-size: cover;
-            background-repeat: repeat-y;
-            background-position: center 0px;
-            animation: slideUp 25s linear infinite;
-        }
-        @keyframes slideUp {
-            from { background-position: center 0px; }
-            to { background-position: center -2000px; }
-        }
-        @media (max-width: 640px) {
-            body { animation: none; background-attachment: fixed; }
+            background-color: #050608; /* solid dark – no image */
+            color: #e5e7eb;
         }
         .glass-panel {
-            background: linear-gradient(135deg, rgba(15, 17, 26, 0.6) 0%, rgba(8, 9, 15, 0.7) 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 17, 26, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
         .glass-panel-3d {
-            background: linear-gradient(135deg, rgba(20, 24, 38, 0.35) 0%, rgba(10, 12, 20, 0.45) 100%);
+            background: rgba(20, 24, 38, 0.5);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.04);
             border-right: 1px solid rgba(0, 0, 0, 0.3);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
             transition: all 0.2s ease-in-out;
+        }
+        .glass-panel-3d:hover {
+            background: rgba(25, 30, 48, 0.6);
+            box-shadow: 0 30px 35px -5px rgba(0, 0, 0, 0.7), 0 15px 15px -5px rgba(0, 0, 0, 0.6);
+            border-top: 1px solid rgba(99, 102, 241, 0.3);
         }
         .glow-text { text-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
         .glow-green { text-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
@@ -102,7 +96,7 @@
     <!-- ===== MAIN CONTENT COLUMN ===== -->
     <div class="flex flex-col flex-grow w-0 overflow-hidden">
 
-        <!-- ===== ALERT BANNER (positioned below header) ===== -->
+        <!-- ===== ALERT BANNER ===== -->
         <div id="alert_banner" class="hidden fixed top-16 left-16 sm:left-20 md:left-24 right-0 z-50 mx-auto max-w-7xl px-4 pointer-events-none">
             <div class="bg-gradient-to-r from-amber-500/20 to-rose-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl p-3 shadow-2xl pointer-events-auto">
                 <div class="flex items-center justify-between">
@@ -125,7 +119,6 @@
         <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <div class="flex items-center space-x-3">
-                    <!-- Brand (logo already in sidebar, but keep for consistency) -->
                     <div>
                         <h1 class="text-sm sm:text-base font-extrabold tracking-wider text-white uppercase flex items-center gap-1">
                             Dragon<span class="text-indigo-400">Eye</span> <span class="text-[8px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-bold">PRO</span>
@@ -289,7 +282,7 @@
                 </div>
             </div>
 
-            <!-- Correlation Matrix (existing) -->
+            <!-- Correlation Matrix -->
             <div class="glass-panel-3d p-4 rounded-xl border border-gray-800/60 mb-4">
                 <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
                     <div>
@@ -393,7 +386,7 @@
     </div>
     <!-- ===== END MAIN CONTENT COLUMN ===== -->
 
-    <!-- ===== JAVASCRIPT ===== -->
+    <!-- ===== JAVASCRIPT (unchanged) ===== -->
     <script>
         let currentAsset = 'gj';
 

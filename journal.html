@@ -10,40 +10,29 @@
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background-color: #050608;
-            background-image: url('/static/bg.jpg');
-            background-size: cover;
-            background-repeat: repeat-y;
-            background-position: center 0px;
-            animation: slideUp 25s linear infinite;
-        }
-        @keyframes slideUp {
-            from { background-position: center 0px; }
-            to { background-position: center -2000px; }
-        }
-        @media (max-width: 640px) {
-            body { animation: none; background-attachment: fixed; }
+            background-color: #050608; /* solid dark – no image */
+            color: #e5e7eb;
         }
         .glass-panel {
-            background: linear-gradient(135deg, rgba(15, 17, 26, 0.6) 0%, rgba(8, 9, 15, 0.7) 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 17, 26, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
         .glass-panel-3d {
-            background: linear-gradient(135deg, rgba(20, 24, 38, 0.35) 0%, rgba(10, 12, 20, 0.45) 100%);
+            background: rgba(20, 24, 38, 0.5);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.04);
             border-right: 1px solid rgba(0, 0, 0, 0.3);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
             transition: all 0.2s ease-in-out;
         }
         .glass-panel-3d:hover {
-            background: linear-gradient(135deg, rgba(25, 30, 48, 0.4) 0%, rgba(12, 15, 24, 0.5) 100%);
+            background: rgba(25, 30, 48, 0.6);
             box-shadow: 0 30px 35px -5px rgba(0, 0, 0, 0.7), 0 15px 15px -5px rgba(0, 0, 0, 0.6);
-            border-top: 1px solid rgba(255, 215, 0, 0.4); /* gold accent */
+            border-top: 1px solid rgba(255, 215, 0, 0.3);
         }
         .sidebar-icon {
             width: 2.5rem;
@@ -55,27 +44,12 @@
             transition: all 0.2s;
         }
         .sidebar-icon:hover { background: rgba(255,255,255,0.05); }
-        .sidebar-icon.active { background: rgba(255,215,0,0.2); color: #ffd700; }
+        .sidebar-icon.active { background: rgba(255,215,0,0.15); color: #ffd700; }
         .stat-card { transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-2px); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .chip {
-            background: rgba(255,255,255,0.05);
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: all 0.2s;
-        }
-        .chip.active {
-            background: rgba(255,215,0,0.2);
-            border-color: #ffd700;
-            color: #ffd700;
-        }
-        .chip:hover { background: rgba(255,255,255,0.1); }
+        .gold-text { color: #ffd700; }
+        .gold-border { border-color: rgba(255,215,0,0.25); }
+        .gold-glow { box-shadow: 0 0 20px rgba(255,215,0,0.05); }
         .tab-btn {
             padding: 0.5rem 1rem;
             font-size: 0.7rem;
@@ -90,30 +64,16 @@
             border: 1px solid transparent;
         }
         .tab-btn.active {
-            background: rgba(255,215,0,0.15);
+            background: rgba(255,215,0,0.1);
             color: #ffd700;
-            border-color: rgba(255,215,0,0.3);
+            border-color: rgba(255,215,0,0.25);
         }
         .tab-btn:hover {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.03);
             color: #fff;
         }
-        .gold-text { color: #ffd700; }
-        .gold-border { border-color: rgba(255,215,0,0.3); }
-        .gold-glow { box-shadow: 0 0 20px rgba(255,215,0,0.1); }
-        /* TradingView chart placeholder */
-        .tv-chart-placeholder {
-            height: 300px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6b7280;
-            font-size: 0.8rem;
-        }
         .coach-bubble {
-            background: rgba(255,215,0,0.05);
+            background: rgba(255,215,0,0.04);
             border-left: 3px solid #ffd700;
             padding: 0.75rem 1rem;
             border-radius: 0.5rem;
@@ -127,15 +87,55 @@
             font-weight: 700;
         }
         .coach-bubble .text {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: #d1d5db;
-            margin-top: 0.25rem;
+            margin-top: 0.15rem;
+        }
+        .chip {
+            background: rgba(255,255,255,0.04);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .chip.active {
+            background: rgba(255,215,0,0.15);
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+        .chip:hover { background: rgba(255,255,255,0.08); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(to right, #ffd700, #f59e0b);
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+        .tv-chart-placeholder {
+            height: 200px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 0.8rem;
         }
     </style>
 </head>
-<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-gold-500/30 select-none">
+<body class="h-screen w-screen overflow-hidden flex flex-row selection:bg-gold-500/30 select-none">
 
-    <!-- SIDEBAR (same as before) -->
+    <!-- ===== SIDEBAR ===== -->
     <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
         <a href="/" class="mb-6">
             <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gold-500/30" />
@@ -154,18 +154,18 @@
         </nav>
     </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- ===== MAIN CONTENT ===== -->
     <div class="flex flex-col flex-grow w-0 overflow-hidden">
-        <!-- Header with gold accent -->
+        <!-- Top Header -->
         <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <div>
                     <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
-                        <span class="text-gold-400 gold-text">📓</span>
+                        <span class="gold-text">📓</span>
                         <span>Trading Journal</span>
                         <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">PRO</span>
                     </h1>
-                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Track, Review, Improve</p>
+                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Discipline First. Results Follow.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="exportCSV()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest border border-gray-600/50">
@@ -178,7 +178,7 @@
             </div>
         </header>
 
-        <!-- Tabs Navigation -->
+        <!-- Tabs -->
         <div class="flex items-center gap-1 px-3 sm:px-6 pt-3 border-b border-white/5">
             <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
             <button class="tab-btn" data-tab="coach" onclick="switchTab('coach')">AI Coach</button>
@@ -186,131 +186,141 @@
             <button class="tab-btn" data-tab="backtest" onclick="switchTab('backtest')">Backtester</button>
         </div>
 
-        <!-- Scrollable Content -->
+        <!-- Main Scrollable -->
         <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
 
-            <!-- ========== DASHBOARD TAB ========== -->
+            <!-- ===================== DASHBOARD TAB ===================== -->
             <div id="tab-dashboard" class="tab-content">
-                <!-- Stats Grid (same as before) -->
+                <!-- Stats row -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border">
                         <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
                         <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
                     </div>
-                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border">
                         <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
                         <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
                     </div>
-                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border">
                         <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
                         <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
                     </div>
-                    <div class="glass-panel-3d p-4 rounded-xl stat-card gold-border">
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border">
                         <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
                         <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
                     </div>
                 </div>
-                <!-- Extra stats -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Win</p>
-                        <p id="stat_avgwin" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
+
+                <!-- Two‑col: Focus + Getting Started (left) / Equity curve (right) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                    <!-- Left column: Focus + Progress -->
+                    <div class="lg:col-span-1 space-y-4">
+                        <!-- This Week's Focus -->
+                        <div class="glass-panel-3d p-4 rounded-xl gold-border">
+                            <h3 class="text-[9px] font-bold uppercase tracking-widest text-gold-400">This Week's Focus</h3>
+                            <div id="focus_message" class="text-sm text-gray-200 mt-2 leading-relaxed">
+                                Add your first trade to get started.
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                <button onclick="switchTab('coach')" class="text-[10px] bg-gold-600/20 text-gold-400 hover:bg-gold-600/30 px-3 py-1 rounded-md border border-gold-500/20 transition">Open Insights</button>
+                                <button onclick="switchTab('coach')" class="text-[10px] bg-gray-700/50 text-gray-300 hover:bg-gray-600 px-3 py-1 rounded-md border border-white/5 transition">Discuss with Edge</button>
+                            </div>
+                            <p class="text-[7px] text-gray-500 mt-2 uppercase tracking-widest">GENERATED BY EDGE AI</p>
+                        </div>
+
+                        <!-- Getting Started Progress -->
+                        <div class="glass-panel-3d p-4 rounded-xl gold-border">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-[9px] font-bold uppercase tracking-widest text-gold-400">Getting Started</h3>
+                                <span id="progress_text" class="text-xs font-bold text-white">0/7</span>
+                            </div>
+                            <div class="progress-bar mt-2">
+                                <div id="progress_fill" class="fill" style="width:0%;"></div>
+                            </div>
+                            <ul id="progress_list" class="mt-3 space-y-1 text-[10px] text-gray-400"></ul>
+                        </div>
                     </div>
-                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Avg Loss</p>
-                        <p id="stat_avgloss" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
-                    </div>
-                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Max Drawdown</p>
-                        <p id="stat_drawdown" class="text-sm font-black text-rose-400 mt-0.5">$0</p>
-                    </div>
-                    <div class="glass-panel-3d p-3 rounded-xl stat-card gold-border">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Best Trade</p>
-                        <p id="stat_best" class="text-sm font-black text-emerald-400 mt-0.5">$0</p>
+
+                    <!-- Right column: Equity chart -->
+                    <div class="lg:col-span-2 glass-panel p-4 rounded-xl gold-border">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
+                        <div style="position:relative; height:200px;">
+                            <canvas id="equityChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Charts Row -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-                    <div class="glass-panel p-4 rounded-xl lg:col-span-2 gold-border">
-                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
-                        <div style="position:relative; height:180px;"><canvas id="equityChart"></canvas></div>
-                    </div>
+                <!-- Monthly chart + Win/Loss pie -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="glass-panel p-4 rounded-xl gold-border">
                         <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Monthly P&L</h3>
-                        <div style="position:relative; height:180px;"><canvas id="monthlyChart"></canvas></div>
+                        <div style="position:relative; height:160px;"><canvas id="monthlyChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl gold-border">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win / Loss</h3>
+                        <div style="position:relative; height:160px;"><canvas id="pieChart"></canvas></div>
                     </div>
                 </div>
 
-                <!-- Win/Loss Pie + Filter -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                    <div class="glass-panel p-4 rounded-xl md:col-span-1 gold-border">
-                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win/Loss</h3>
-                        <div style="position:relative; height:150px;"><canvas id="pieChart"></canvas></div>
+                <!-- Filters + Table -->
+                <div class="glass-panel p-4 rounded-xl gold-border">
+                    <div class="flex flex-wrap items-center gap-2 mb-3">
+                        <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
+                        <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
+                        <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
+                        <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
+                        <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
+                        <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
+                        <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
+                        <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
+                        <select id="monthFilter" onchange="applyFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
+                            <option value="all">All Months</option>
+                        </select>
                     </div>
-                    <div class="glass-panel p-4 rounded-xl md:col-span-3 gold-border">
-                        <div class="flex flex-wrap items-center gap-2 mb-3">
-                            <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
-                            <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
-                            <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
-                            <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
-                            <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
-                            <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
-                            <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
-                            <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
-                            <select id="monthFilter" onchange="applyFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
-                                <option value="all">All Months</option>
-                            </select>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-[10px]">
-                                <thead>
-                                    <tr class="text-gray-400 border-b border-white/5">
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Reason</th>
-                                        <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="trades_body">
-                                    <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[10px]">
+                            <thead>
+                                <tr class="text-gray-400 border-b border-white/5">
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Reason</th>
+                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trades_body">
+                                <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- ========== AI COACH TAB ========== -->
+            <!-- ===================== AI COACH TAB ===================== -->
             <div id="tab-coach" class="tab-content hidden">
                 <div class="glass-panel p-6 rounded-xl gold-border">
                     <h2 class="text-base font-extrabold text-white flex items-center gap-2">
                         <span class="gold-text">🧠</span> AI Coach
                     </h2>
-                    <p class="text-[11px] text-gray-400 mt-1">Analyses your trade notes and provides feedback to sharpen your edge.</p>
+                    <p class="text-[11px] text-gray-400 mt-1">Analyses your trade notes and provides feedback.</p>
                     <div id="coach-container" class="mt-4 space-y-3">
-                        <!-- coach insights will be rendered here -->
-                        <div class="text-gray-500 text-sm">Add some trades with notes to get AI insights.</div>
+                        <div class="text-gray-500 text-sm">Add trades with notes to get insights.</div>
                     </div>
                 </div>
             </div>
 
-            <!-- ========== MARKET REPLAY TAB ========== -->
+            <!-- ===================== MARKET REPLAY TAB ===================== -->
             <div id="tab-replay" class="tab-content hidden">
                 <div class="glass-panel p-6 rounded-xl gold-border">
                     <h2 class="text-base font-extrabold text-white flex items-center gap-2">
                         <span class="gold-text">📈</span> Market Replay
                     </h2>
                     <p class="text-[11px] text-gray-400 mt-1">Click on a trade in the dashboard to load its chart here.</p>
-                    <!-- TradingView Chart placeholder (we will embed real chart later) -->
-                    <div id="replay-chart" class="tv-chart-placeholder mt-4">
-                        Select a trade to replay
-                    </div>
+                    <div id="replay-chart" class="tv-chart-placeholder mt-4">Select a trade to replay</div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <button id="replay-prev" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md">◀ Prev</button>
                         <button id="replay-next" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-md">Next ▶</button>
@@ -319,7 +329,7 @@
                 </div>
             </div>
 
-            <!-- ========== BACKTESTER TAB ========== -->
+            <!-- ===================== BACKTESTER TAB ===================== -->
             <div id="tab-backtest" class="tab-content hidden">
                 <div class="glass-panel p-6 rounded-xl gold-border">
                     <h2 class="text-base font-extrabold text-white flex items-center gap-2">
@@ -327,16 +337,15 @@
                     </h2>
                     <p class="text-[11px] text-gray-400 mt-1">Simulate your strategy over historical data.</p>
                     <div class="mt-4 text-gray-500 text-sm p-4 bg-[#090a0f]/50 rounded-lg border border-white/5">
-                        This feature is coming soon. Define entry/exit rules, select a pair and date range, and run a backtest.
+                        Define entry/exit rules, select a pair and date range – coming soon.
                     </div>
-                    <!-- You can later add inputs for backtest parameters -->
                 </div>
             </div>
 
         </main>
     </div>
 
-    <!-- ===== ADD TRADE MODAL (unchanged) ===== -->
+    <!-- ===== ADD TRADE MODAL ===== -->
     <div id="addTradeModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div class="glass-panel w-full max-w-lg rounded-2xl p-6 border border-gray-800/80 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -436,7 +445,8 @@
             populateMonthFilter();
             applyFilter();
             renderAll();
-            updateCoach();
+            updateCoachAndFocus();
+            updateProgress();
         }
 
         function saveTrades() {
@@ -483,7 +493,6 @@
             renderTable();
             renderStats();
             renderCharts();
-            // update replay list for market replay
             replayTrades = filteredTrades;
             if (currentReplayIndex >= replayTrades.length) currentReplayIndex = replayTrades.length - 1;
             if (currentReplayIndex < 0 && replayTrades.length > 0) currentReplayIndex = 0;
@@ -500,24 +509,11 @@
             const totalLoss = trades.reduce((sum, t) => sum + (t.pl < 0 ? Math.abs(t.pl) : 0), 0);
             const profitFactor = totalLoss ? (totalProfit / totalLoss) : (totalProfit > 0 ? Infinity : 0);
             const avgPl = total ? (trades.reduce((s, t) => s + t.pl, 0) / total) : 0;
-            const avgWin = wins ? (trades.filter(t => t.pl > 0).reduce((s, t) => s + t.pl, 0) / wins) : 0;
-            const avgLoss = losses ? (trades.filter(t => t.pl < 0).reduce((s, t) => s + t.pl, 0) / losses) : 0;
-            const best = trades.length ? Math.max(...trades.map(t => t.pl)) : 0;
-            let cum = 0, maxCum = 0, drawdown = 0;
-            trades.slice().sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
-                cum += t.pl;
-                if (cum > maxCum) maxCum = cum;
-                if (cum - maxCum < drawdown) drawdown = cum - maxCum;
-            });
 
             document.getElementById('stat_total').innerText = total;
             document.getElementById('stat_winrate').innerText = winRate.toFixed(1) + '%';
             document.getElementById('stat_profitfactor').innerText = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
             document.getElementById('stat_avgpl').innerText = '$' + avgPl.toFixed(2);
-            document.getElementById('stat_avgwin').innerText = '$' + avgWin.toFixed(2);
-            document.getElementById('stat_avgloss').innerText = '$' + avgLoss.toFixed(2);
-            document.getElementById('stat_drawdown').innerText = '$' + Math.abs(drawdown).toFixed(2);
-            document.getElementById('stat_best').innerText = '$' + best.toFixed(2);
         }
 
         function renderTable() {
@@ -564,14 +560,14 @@
                         label: 'Equity',
                         data: labelsEq.length ? eqData : [0],
                         borderColor: '#ffd700',
-                        backgroundColor: 'rgba(255,215,0,0.1)',
+                        backgroundColor: 'rgba(255,215,0,0.08)',
                         fill: true,
                         tension: 0.2,
                         pointRadius: 2,
                         pointBackgroundColor: '#ffd700',
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } } } }
             });
 
             const months = {};
@@ -595,12 +591,12 @@
                     datasets: [{
                         label: 'P&L',
                         data: monthData.length ? monthData : [0],
-                        backgroundColor: monthData.map(v => v >= 0 ? 'rgba(255,215,0,0.7)' : 'rgba(244,63,94,0.7)'),
+                        backgroundColor: monthData.map(v => v >= 0 ? 'rgba(255,215,0,0.6)' : 'rgba(244,63,94,0.6)'),
                         borderColor: monthData.map(v => v >= 0 ? '#ffd700' : '#f43f5e'),
                         borderWidth: 1,
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { display: false } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { display: false } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } } } }
             });
 
             const wins = filteredTrades.filter(t => t.pl > 0).length;
@@ -627,49 +623,100 @@
             applyFilter();
         }
 
-        // ---------- COACH ----------
-        function updateCoach() {
+        // ---------- COACH & FOCUS ----------
+        function updateCoachAndFocus() {
+            // Coach container (AI Coach tab)
             const container = document.getElementById('coach-container');
             if (trades.length === 0) {
-                container.innerHTML = `<div class="text-gray-500 text-sm">No trades yet. Add some trades with notes to get AI insights.</div>`;
-                return;
-            }
-            // Simple sentiment analysis on notes
-            const notes = trades.filter(t => t.notes).map(t => t.notes);
-            if (notes.length === 0) {
-                container.innerHTML = `<div class="text-gray-500 text-sm">Add notes to your trades for the AI to analyse.</div>`;
-                return;
-            }
-            // Basic mock analysis: count positive vs negative words
-            const positiveWords = ['good', 'great', 'excellent', 'breakout', 'support', 'resistance', 'trend', 'confident'];
-            const negativeWords = ['bad', 'terrible', 'missed', 'mistake', 'panic', 'fear', 'greed', 'frustrating'];
-            let posCount = 0, negCount = 0;
-            notes.forEach(n => {
-                const words = n.toLowerCase().split(/\s+/);
-                words.forEach(w => {
-                    if (positiveWords.some(p => w.includes(p))) posCount++;
-                    if (negativeWords.some(p => w.includes(p))) negCount++;
-                });
-            });
-            const total = posCount + negCount || 1;
-            const confidence = (posCount / total * 100).toFixed(0);
-            const sentiment = confidence > 60 ? 'Confident & disciplined' : (confidence < 40 ? 'Cautious / uncertain' : 'Balanced');
+                container.innerHTML = `<div class="text-gray-500 text-sm">No trades yet. Add trades with notes to get AI insights.</div>`;
+            } else {
+                const notes = trades.filter(t => t.notes).map(t => t.notes);
+                if (notes.length === 0) {
+                    container.innerHTML = `<div class="text-gray-500 text-sm">Add notes to your trades for the AI to analyse.</div>`;
+                } else {
+                    const positiveWords = ['good', 'great', 'excellent', 'breakout', 'support', 'resistance', 'trend', 'confident'];
+                    const negativeWords = ['bad', 'terrible', 'missed', 'mistake', 'panic', 'fear', 'greed', 'frustrating'];
+                    let posCount = 0, negCount = 0;
+                    notes.forEach(n => {
+                        const words = n.toLowerCase().split(/\s+/);
+                        words.forEach(w => {
+                            if (positiveWords.some(p => w.includes(p))) posCount++;
+                            if (negativeWords.some(p => w.includes(p))) negCount++;
+                        });
+                    });
+                    const total = posCount + negCount || 1;
+                    const confidence = (posCount / total * 100).toFixed(0);
+                    const sentiment = confidence > 60 ? 'Confident & disciplined' : (confidence < 40 ? 'Cautious / uncertain' : 'Balanced');
 
-            let html = `
-                <div class="coach-bubble">
-                    <div class="label">🧠 Overall Mindset</div>
-                    <div class="text">Your notes suggest a <strong>${sentiment}</strong> approach (confidence score: ${confidence}%).</div>
-                </div>
-                <div class="coach-bubble">
-                    <div class="label">📊 Win/Loss Sentiment</div>
-                    <div class="text">Winning trades: ${trades.filter(t => t.pl > 0).length} | Losing: ${trades.filter(t => t.pl < 0).length}</div>
-                </div>
-                <div class="coach-bubble">
-                    <div class="label">💡 Tip</div>
-                    <div class="text">${confidence > 60 ? 'Keep up the discipline – your notes reflect a strong mental game.' : 'Consider reviewing your losing trades for emotional patterns.'}</div>
-                </div>
-            `;
-            container.innerHTML = html;
+                    let html = `
+                        <div class="coach-bubble">
+                            <div class="label">🧠 Overall Mindset</div>
+                            <div class="text">Your notes suggest a <strong>${sentiment}</strong> approach (confidence score: ${confidence}%).</div>
+                        </div>
+                        <div class="coach-bubble">
+                            <div class="label">📊 Win/Loss Sentiment</div>
+                            <div class="text">Winning trades: ${trades.filter(t => t.pl > 0).length} | Losing: ${trades.filter(t => t.pl < 0).length}</div>
+                        </div>
+                        <div class="coach-bubble">
+                            <div class="label">💡 Tip</div>
+                            <div class="text">${confidence > 60 ? 'Keep up the discipline – your notes reflect a strong mental game.' : 'Consider reviewing your losing trades for emotional patterns.'}</div>
+                        </div>
+                    `;
+                    container.innerHTML = html;
+                }
+            }
+
+            // Focus message (Dashboard widget)
+            const focusEl = document.getElementById('focus_message');
+            if (trades.length === 0) {
+                focusEl.innerText = 'Add your first trade to get started.';
+            } else {
+                const wins = trades.filter(t => t.pl > 0).length;
+                const total = trades.length;
+                const recent = trades.slice(-3);
+                const avgPl = (trades.reduce((s, t) => s + t.pl, 0) / total).toFixed(2);
+                let msg = `You've made ${total} trade${total>1?'s':''}. `;
+                if (wins === total) msg += `Perfect win rate – keep executing your edge. `;
+                else if (wins > total/2) msg += `You're winning more than you lose – stay disciplined. `;
+                else msg += `Review your losing trades for patterns. `;
+                if (recent.length > 0) {
+                    const last = recent[recent.length-1];
+                    msg += `Your last trade on ${last.date} was ${last.direction} on ${last.pair} with ${last.pl > 0 ? 'a win' : 'a loss'}.`;
+                }
+                focusEl.innerText = msg;
+            }
+        }
+
+        // ---------- GETTING STARTED PROGRESS ----------
+        function updateProgress() {
+            const tasks = [
+                { id: 'first_trade', label: 'Add your first trade', done: trades.length >= 1 },
+                { id: 'win_trade', label: 'Win a trade', done: trades.some(t => t.pl > 0) },
+                { id: 'loss_trade', label: 'Experience a loss', done: trades.some(t => t.pl < 0) },
+                { id: 'add_notes', label: 'Add notes to a trade', done: trades.some(t => t.notes && t.notes.length > 2) },
+                { id: 'five_trades', label: 'Reach 5 trades', done: trades.length >= 5 },
+                { id: 'profit_factor', label: 'Achieve profit factor > 1', done: (() => {
+                    const totalProfit = trades.reduce((s, t) => s + (t.pl > 0 ? t.pl : 0), 0);
+                    const totalLoss = trades.reduce((s, t) => s + (t.pl < 0 ? Math.abs(t.pl) : 0), 0);
+                    return totalLoss > 0 && totalProfit / totalLoss > 1;
+                })() },
+                { id: 'win_rate', label: 'Win rate above 50%', done: (() => {
+                    const wins = trades.filter(t => t.pl > 0).length;
+                    return trades.length > 0 && (wins / trades.length) > 0.5;
+                })() }
+            ];
+            const doneCount = tasks.filter(t => t.done).length;
+            const total = tasks.length;
+            document.getElementById('progress_text').innerText = `${doneCount}/${total}`;
+            document.getElementById('progress_fill').style.width = `${(doneCount/total)*100}%`;
+
+            const list = document.getElementById('progress_list');
+            list.innerHTML = tasks.map(t => `
+                <li class="flex items-center gap-2">
+                    <span class="${t.done ? 'text-emerald-400' : 'text-gray-600'}">${t.done ? '✅' : '⬜'}</span>
+                    <span class="${t.done ? 'text-gray-200' : 'text-gray-500'}">${t.label}</span>
+                </li>
+            `).join('');
         }
 
         // ---------- MARKET REPLAY ----------
@@ -694,17 +741,15 @@
 
         function loadReplayChart(trade) {
             const container = document.getElementById('replay-chart');
-            // For now, just display a placeholder with trade details
             container.innerHTML = `
                 <div class="text-center">
                     <p class="text-xs text-gray-400">Replay for ${trade.pair} on ${trade.date}</p>
                     <p class="text-sm text-white mt-2">Entry: ${trade.entry} | Exit: ${trade.exit}</p>
                     <p class="text-xs text-gray-400 mt-1">Reason: ${trade.entryReason || 'N/A'}</p>
                     <p class="text-xs text-gray-400">Notes: ${trade.notes || '—'}</p>
-                    <div class="mt-3 text-xs text-gray-500">(TradingView chart integration coming soon)</div>
+                    <div class="mt-3 text-xs text-gray-500">(TradingView chart coming soon)</div>
                 </div>
             `;
-            // In future, embed TradingView widget with symbol and date range
         }
 
         function replayPrev() {
@@ -714,7 +759,6 @@
                 loadReplayChart(replayTrades[currentReplayIndex]);
             }
         }
-
         function replayNext() {
             if (currentReplayIndex < replayTrades.length - 1) {
                 currentReplayIndex++;
@@ -756,7 +800,8 @@
             trades.push(newTrade);
             saveTrades();
             renderAll();
-            updateCoach();
+            updateCoachAndFocus();
+            updateProgress();
             closeAddTradeModal();
         }
 
@@ -765,7 +810,8 @@
                 trades = trades.filter(t => t.id !== id);
                 saveTrades();
                 renderAll();
-                updateCoach();
+                updateCoachAndFocus();
+                updateProgress();
             }
         }
 
@@ -803,7 +849,6 @@
             if (content) content.classList.remove('hidden');
             const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
             if (btn) btn.classList.add('active');
-            // Re-render charts if switching to dashboard
             if (tabId === 'dashboard') {
                 setTimeout(() => renderCharts(), 100);
             }
@@ -812,14 +857,10 @@
         // ---------- INIT ----------
         window.onload = function() {
             loadTrades();
-            // Replay button listeners
             document.getElementById('replay-prev').addEventListener('click', replayPrev);
             document.getElementById('replay-next').addEventListener('click', replayNext);
-            // Set default tab
             switchTab('dashboard');
         };
-
-        // additional: when filtering, also update replay list
         window.applyFilter = applyFilter;
     </script>
 
