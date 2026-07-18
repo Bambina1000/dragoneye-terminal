@@ -533,6 +533,57 @@ async def get_history(asset: str, limit: int = Query(50, le=100)):
         ]
     }
 
+# ---------- NEW: Weekday Performance Endpoint ----------
+async def get_weekday_performance(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    try:
+        loop = asyncio.get_running_loop()
+        ticker = yf.Ticker(config.ticker)
+        # Fetch 2 years of daily data (enough for a solid average)
+        hist = await loop.run_in_executor(None, lambda: ticker.history(period="2y"))
+        if hist.empty:
+            return {"error": "No historical data"}
+
+        # Calculate daily percentage change
+        hist['return'] = hist['Close'].pct_change() * 100  # in percent
+
+        # Add weekday name (Monday=0, Sunday=6)
+        hist['weekday'] = hist.index.day_name()
+
+        # Group by weekday and get average return
+        avg_returns = hist.groupby('weekday')['return'].mean().to_dict()
+
+        # Ensure all weekdays are present (fill missing with 0)
+        all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        for day in all_days:
+            if day not in avg_returns:
+                avg_returns[day] = 0.0
+
+        # Find best and worst
+        best_day = max(avg_returns, key=avg_returns.get)
+        worst_day = min(avg_returns, key=avg_returns.get)
+
+        return {
+            "asset": asset,
+            "average_returns": avg_returns,
+            "best_day": {"name": best_day, "return": avg_returns[best_day]},
+            "worst_day": {"name": worst_day, "return": avg_returns[worst_day]},
+            "status": "healthy"
+        }
+    except Exception as e:
+        logger.error(f"Weekday performance error for {asset}: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/performance/weekday")
+async def weekday_performance(asset: str = Query("gj", description="Asset token key: 'gj' or 'btc'")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    result = await get_weekday_performance(clean_asset)
+    return result
+
+# ---------- End of new endpoint ----------
+
 @app.get("/", response_class=FileResponse)
 async def serve_dashboard():
     index_path = os.path.join(base_dir, "index.html")
