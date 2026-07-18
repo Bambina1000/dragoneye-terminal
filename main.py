@@ -8,7 +8,7 @@ import sqlite3
 import uuid
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager, contextmanager
 from typing import List, Dict, Any
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 import uvicorn
+import pytz
+import json
 
 # ---------- Rate Limiting ----------
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -43,7 +45,6 @@ logger = logging.getLogger("MacroEngine")
 logger.addFilter(RequestIdFilter())
 
 # ---------- NLTK Setup (Render‑compatible) ----------
-# Use /tmp/nltk_data – writable on Render
 nltk.data.path.append('/tmp/nltk_data')
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
@@ -58,7 +59,7 @@ sia.lexicon.update({
     'stimulus': 1.5, 'intervention': -1.0
 })
 
-# ---------- Database Setup (SQLite – for demo; replace with PostgreSQL later) ----------
+# ---------- Database Setup ----------
 DB_PATH = "macro_data.db"
 
 @contextmanager
@@ -96,6 +97,13 @@ GLOBAL_MACRO_CACHE: Dict[str, Dict[str, Any]] = {
 }
 cache_lock = asyncio.Lock()
 
+# ---------- Calendar Alerts ----------
+UPCOMING_ALERTS: Dict[str, List[Dict]] = {
+    "gj": [],
+    "btc": []
+}
+alerts_lock = asyncio.Lock()
+
 # ---------- News Feeds ----------
 NEWS_FEEDS = [
     "https://www.dailyfx.com/feeds/forex-market-news",
@@ -129,6 +137,105 @@ ASSET_REGISTRY: Dict[str, AssetConfig] = {
         neutral_verdict="Multi-timeframe divergence identified. Long-term fundamental carry premiums are balancing near-term sentiment contractions, compressing institutional books inside range brackets."
     )
 }
+
+# ---------- Alert Engine ----------
+ASSET_CURRENCIES = {
+    "gj": ["GBP", "JPY", "USD"],
+    "btc": ["USD"]
+}
+EASTERN = pytz.timezone('America/New_York')
+
+async def fetch_calendar_events() -> List[Dict]:
+    """Fetch the weekly economic calendar from ForexFactory feed."""
+    url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                logger.warning(f"Calendar feed returned {response.status_code}")
+                return []
+            data = response.json()
+            return data
+    except Exception as e:
+        logger.error(f"Failed to fetch calendar: {e}")
+        return []
+
+def parse_event_time(event: Dict) -> datetime | None:
+    """Convert the event's date/time to UTC datetime."""
+    try:
+        date_str = event.get('date')
+        time_str = event.get('time')
+        if not date_str or not time_str:
+            return None
+        if time_str in ("TBD", "All Day"):
+            return None
+        dt_str = f"{date_str} {time_str}"
+        for fmt in ["%b %d, %Y %I:%M%p", "%b %d, %Y %H:%M"]:
+            try:
+                dt = datetime.strptime(dt_str, fmt)
+                eastern_dt = EASTERN.localize(dt)
+                utc_dt = eastern_dt.astimezone(pytz.UTC)
+                return utc_dt
+            except ValueError:
+                continue
+        return None
+    except Exception as e:
+        logger.warning(f"Error parsing event time: {e}")
+        return None
+
+async def update_alerts(asset: str):
+    """Update the alerts list for a specific asset."""
+    currencies = ASSET_CURRENCIES.get(asset, [])
+    if not currencies:
+        return
+    events = await fetch_calendar_events()
+    if not events:
+        async with alerts_lock:
+            UPCOMING_ALERTS[asset] = []
+        return
+
+    now_utc = datetime.now(pytz.UTC)
+    upcoming = []
+    for event in events:
+        impact = event.get('impact', '').lower()
+        if impact != 'high':
+            continue
+        currency = event.get('currency')
+        if currency not in currencies:
+            continue
+        event_time = parse_event_time(event)
+        if not event_time:
+            continue
+        if event_time <= now_utc:
+            continue
+        diff = (event_time - now_utc).total_seconds() / 60
+        if diff <= 30 and diff >= 0:
+            upcoming.append({
+                "event": event.get('event', 'Unknown'),
+                "currency": currency,
+                "impact": impact,
+                "time_utc": event_time.isoformat(),
+                "minutes_to_event": round(diff),
+                "forecast": event.get('forecast', ''),
+                "previous": event.get('previous', '')
+            })
+    upcoming.sort(key=lambda x: x['minutes_to_event'])
+    async with alerts_lock:
+        UPCOMING_ALERTS[asset] = upcoming
+
+async def calendar_alert_daemon(shutdown_event: asyncio.Event):
+    """Background task that periodically checks for alerts."""
+    while not shutdown_event.is_set():
+        try:
+            for asset in ["gj", "btc"]:
+                await update_alerts(asset)
+            for _ in range(180):
+                if shutdown_event.is_set():
+                    return
+                await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Alert daemon error: {e}")
+            await asyncio.sleep(60)
 
 # ---------- Technical Indicators ----------
 async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
@@ -359,7 +466,7 @@ async def store_snapshot(asset: str, data: Dict):
     except Exception as e:
         logger.error(f"Failed to store snapshot for {asset}: {e}")
 
-# ---------- Refresh Cycle (with lock) ----------
+# ---------- Refresh Cycle ----------
 async def execute_single_refresh_cycle(force: bool = False):
     async with cache_lock:
         for asset in ["gj", "btc"]:
@@ -405,7 +512,7 @@ async def execute_single_refresh_cycle(force: bool = False):
             except Exception as e:
                 logger.error(f"Critical execution error inside daemon runner block for {asset.upper()}: {str(e)}")
 
-# ---------- Daemon ----------
+# ---------- Daemons ----------
 async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
     while not shutdown_event.is_set():
         try:
@@ -426,14 +533,18 @@ async def lifespan(fastapi_app: FastAPI):
     await execute_single_refresh_cycle(force=True)
     logger.info("Cache arrays structurally hot. Initializing processing worker context loop.")
 
+    # Start both daemons
     bg_task = asyncio.create_task(macro_data_refresh_daemon(shutdown_event))
+    alert_task = asyncio.create_task(calendar_alert_daemon(shutdown_event))
+
     yield
     logger.info("Server shutdown intercepted. Signalling task closure sequences...")
     shutdown_event.set()
     try:
         await asyncio.wait_for(bg_task, timeout=5.0)
+        await asyncio.wait_for(alert_task, timeout=5.0)
     except asyncio.TimeoutError:
-        logger.warning("Background execution thread hung during cancellation framework loop. Forcing clean kill.")
+        logger.warning("Some background threads hung during cancellation. Forcing clean kill.")
     logger.info("Application state memory closed down cleanly.")
 
 # ---------- FastAPI App ----------
@@ -533,36 +644,25 @@ async def get_history(asset: str, limit: int = Query(50, le=100)):
         ]
     }
 
-# ---------- NEW: Weekday Performance Endpoint ----------
+# ---------- Weekday Performance ----------
 async def get_weekday_performance(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
     try:
         loop = asyncio.get_running_loop()
         ticker = yf.Ticker(config.ticker)
-        # Fetch 2 years of daily data (enough for a solid average)
         hist = await loop.run_in_executor(None, lambda: ticker.history(period="2y"))
         if hist.empty:
             return {"error": "No historical data"}
 
-        # Calculate daily percentage change
-        hist['return'] = hist['Close'].pct_change() * 100  # in percent
-
-        # Add weekday name (Monday=0, Sunday=6)
+        hist['return'] = hist['Close'].pct_change() * 100
         hist['weekday'] = hist.index.day_name()
-
-        # Group by weekday and get average return
         avg_returns = hist.groupby('weekday')['return'].mean().to_dict()
-
-        # Ensure all weekdays are present (fill missing with 0)
         all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         for day in all_days:
             if day not in avg_returns:
                 avg_returns[day] = 0.0
-
-        # Find best and worst
         best_day = max(avg_returns, key=avg_returns.get)
         worst_day = min(avg_returns, key=avg_returns.get)
-
         return {
             "asset": asset,
             "average_returns": avg_returns,
@@ -575,15 +675,70 @@ async def get_weekday_performance(asset: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 @app.get("/performance/weekday")
-async def weekday_performance(asset: str = Query("gj", description="Asset token key: 'gj' or 'btc'")):
+async def weekday_performance(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
     if clean_asset not in ASSET_REGISTRY:
         clean_asset = "gj"
     result = await get_weekday_performance(clean_asset)
     return result
 
-# ---------- End of new endpoint ----------
+# ---------- Correlation Matrix ----------
+async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    macro_tickers = {
+        "DXY": "DX-Y.NYB",
+        "Gold": "GC=F",
+        "US10Y": "^TNX",
+        "EURUSD": "EURUSD=X",
+        "SP500": "^GSPC"
+    }
+    all_tickers = {asset: config.ticker, **macro_tickers}
+    try:
+        loop = asyncio.get_running_loop()
+        data = {}
+        for name, ticker in all_tickers.items():
+            yf_ticker = yf.Ticker(ticker)
+            hist = await loop.run_in_executor(None, lambda t=ticker: yf.Ticker(t).history(period="1y"))
+            if not hist.empty:
+                data[name] = hist['Close']
+        if len(data) < 2:
+            return {"error": "Not enough data for correlation"}
+        df = pd.DataFrame(data)
+        returns = df.pct_change().dropna()
+        corr = returns.corr()
+        corr_dict = corr.to_dict()
+        asset_corr = corr_dict.get(asset, {})
+        sorted_corr = sorted(asset_corr.items(), key=lambda x: abs(x[1]), reverse=True)
+        return {
+            "asset": asset,
+            "correlation_matrix": corr_dict,
+            "asset_correlations": asset_corr,
+            "top_correlations": [{"name": k, "value": v} for k, v in sorted_corr if k != asset],
+            "status": "healthy"
+        }
+    except Exception as e:
+        logger.error(f"Correlation error for {asset}: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
+@app.get("/correlation")
+async def correlation(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    result = await get_correlation_matrix(clean_asset)
+    return result
+
+# ---------- Alerts Endpoint ----------
+@app.get("/alerts")
+async def get_alerts(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    async with alerts_lock:
+        alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
+    return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
+
+# ---------- Root ----------
 @app.get("/", response_class=FileResponse)
 async def serve_dashboard():
     index_path = os.path.join(base_dir, "index.html")
@@ -591,7 +746,7 @@ async def serve_dashboard():
         return JSONResponse(status_code=404, content={"error": "Dashboard index.html not found"})
     return FileResponse(index_path)
 
-# ---------- WebSocket (real-time) ----------
+# ---------- WebSocket ----------
 @app.websocket("/ws/{asset}")
 async def websocket_endpoint(websocket: WebSocket, asset: str):
     await websocket.accept()
@@ -601,10 +756,19 @@ async def websocket_endpoint(websocket: WebSocket, asset: str):
         await websocket.close()
         return
     try:
+        # Send initial data
+        data = GLOBAL_MACRO_CACHE.get(clean, {})
+        await websocket.send_json({"type": "macro", "data": data})
+        async with alerts_lock:
+            alerts = UPCOMING_ALERTS.get(clean, [])
+        await websocket.send_json({"type": "alerts", "data": alerts})
         while True:
-            data = GLOBAL_MACRO_CACHE.get(clean, {})
-            await websocket.send_json(data)
             await asyncio.sleep(30)
+            data = GLOBAL_MACRO_CACHE.get(clean, {})
+            await websocket.send_json({"type": "macro", "data": data})
+            async with alerts_lock:
+                alerts = UPCOMING_ALERTS.get(clean, [])
+            await websocket.send_json({"type": "alerts", "data": alerts})
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for {asset}")
 

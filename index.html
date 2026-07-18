@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Alert Banner -->
+<div id="alert_banner" class="hidden fixed top-16 left-0 right-0 z-50 mx-auto max-w-7xl px-4 pointer-events-none">
+    <div class="bg-gradient-to-r from-amber-500/20 to-rose-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl p-3 shadow-2xl pointer-events-auto">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-xl animate-pulse">🔔</span>
+                <div>
+                    <p id="alert_title" class="text-xs font-bold text-white uppercase">High‑Impact Event Incoming</p>
+                    <p id="alert_description" class="text-[10px] text-gray-300">Loading...</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p id="alert_countdown" class="text-xs font-black text-amber-400">-- min</p>
+                <p id="alert_currency" class="text-[8px] text-gray-400 font-bold uppercase">--</p>
+            </div>
+        </div>
+    </div>
+</div>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
     <title>DragonEye // Macro Framework Pro</title>
@@ -606,6 +624,62 @@
         }
 
         window.onload = fetchData;
+
+        // ---------- Alert Polling ----------
+let alertInterval = null;
+
+async function fetchAlerts() {
+    try {
+        const res = await fetch(`/alerts?asset=${currentAsset}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const alerts = data.alerts || [];
+
+        const banner = document.getElementById('alert_banner');
+        if (alerts.length > 0) {
+            // Show the first (soonest) alert
+            const alert = alerts[0];
+            banner.classList.remove('hidden');
+            document.getElementById('alert_title').innerText = alert.event;
+            document.getElementById('alert_description').innerText = `Forecast: ${alert.forecast || 'N/A'} | Previous: ${alert.previous || 'N/A'}`;
+            document.getElementById('alert_countdown').innerText = `${alert.minutes_to_event} min`;
+            document.getElementById('alert_currency').innerText = alert.currency;
+        } else {
+            banner.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error("Error fetching alerts:", error);
+    }
+}
+
+// Start polling for alerts every 15 seconds
+function startAlertPolling() {
+    if (alertInterval) clearInterval(alertInterval);
+    fetchAlerts();
+    alertInterval = setInterval(fetchAlerts, 15000);
+}
+
+// Stop polling when switching assets (we'll restart)
+function stopAlertPolling() {
+    if (alertInterval) {
+        clearInterval(alertInterval);
+        alertInterval = null;
+    }
+}
+
+// Modify switchAsset to restart alert polling
+const originalSwitchAsset = switchAsset;
+switchAsset = function(asset) {
+    stopAlertPolling();
+    originalSwitchAsset(asset);
+    startAlertPolling();
+};
+
+// Also call startAlertPolling on load
+window.onload = function() {
+    fetchData();
+    startAlertPolling();
+};
     </script>
 </body>
 </html>
