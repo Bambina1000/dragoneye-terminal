@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
-    <title>DragonEye // Macro & Journal Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no, viewport-fit=cover" />
+    <title>DragonEye // Trading Journal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Major+Mono+Display&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
@@ -34,68 +34,38 @@
         .gold-hover:hover { border-color: #d4a843; }
         .gold-bg { background: #d4a843; }
         .gold-bg-hover:hover { background: #d4a843; color: #050608; }
-        .glow-text { text-shadow: 0 0 20px rgba(212, 168, 67, 0.5); }
-        .glow-green { text-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
-        .calendar-frame iframe {
-            width: 100%;
-            height: 450px;
-            border: none;
-            border-radius: 8px;
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 9999px;
+            overflow: hidden;
         }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .bar-container {
-            transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            min-height: 12px;
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(to right, #d4a843, #f5c542);
+            width: 0%;
+            transition: width 0.6s ease;
         }
-        .chart-bg {
-            background: rgba(0,0,0,0.25);
-            border-radius: 6px;
-            padding: 4px;
-        }
-        .sidebar-icon {
-            width: 2.5rem;
-            height: 2.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.75rem;
+        .chip {
+            background: rgba(255,255,255,0.04);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
             transition: all 0.2s;
         }
-        .sidebar-icon:hover { background: rgba(212, 168, 67, 0.15); }
-        .sidebar-icon.active { background: rgba(212, 168, 67, 0.2); color: #d4a843; }
-
-        /* Sidebar dropdown */
-        .dropdown-menu {
-            position: absolute;
-            left: 3.5rem;
-            top: 0;
-            background: #0a0a0c;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 0.75rem;
-            padding: 0.25rem 0;
-            min-width: 140px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
-            display: none;
-            z-index: 50;
-        }
-        .group:hover .dropdown-menu {
-            display: block;
-        }
-        .dropdown-menu a {
-            display: block;
-            padding: 0.4rem 1rem;
-            font-size: 0.7rem;
-            color: #9ca3af;
-            transition: all 0.15s;
-            text-decoration: none;
-        }
-        .dropdown-menu a:hover {
-            background: rgba(212, 168, 67, 0.1);
+        .chip.active {
+            background: rgba(212, 168, 67, 0.15);
+            border-color: #d4a843;
             color: #d4a843;
         }
-
-        /* AI Edge button */
+        .chip:hover { background: rgba(255,255,255,0.08); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .ai-edge-btn {
             position: fixed;
             bottom: 1.5rem;
@@ -158,65 +128,90 @@
             color: #d1d5db;
             margin-top: 0.15rem;
         }
-        .chip {
+
+        /* Sidebar */
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #9ca3af;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+        .sidebar-link:hover {
+            color: #d4a843;
+            background: rgba(212, 168, 67, 0.08);
+        }
+        .sidebar-link.active {
+            color: #d4a843;
+            background: rgba(212, 168, 67, 0.12);
+        }
+        .sidebar-link .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+
+        /* Add trade modal form inputs */
+        .form-input {
             background: rgba(255,255,255,0.04);
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            color: #e5e7eb;
+            font-size: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #d4a843;
+        }
+        .form-label {
+            display: block;
             font-size: 0.65rem;
             font-weight: 600;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
         }
-        .chip.active {
-            background: rgba(212, 168, 67, 0.15);
-            border-color: #d4a843;
-            color: #d4a843;
-        }
-        .chip:hover { background: rgba(255,255,255,0.08); }
-        .progress-bar {
-            height: 4px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 9999px;
-            overflow: hidden;
-        }
-        .progress-bar .fill {
-            height: 100%;
-            background: linear-gradient(to right, #d4a843, #f5c542);
-            width: 0%;
-            transition: width 0.6s ease;
-        }
-        .stat-card { transition: transform 0.2s; }
-        .stat-card:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-row">
 
     <!-- ===== SIDEBAR ===== -->
-    <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
-        <a href="/" class="mb-6">
-            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gold-500/30" />
+    <aside class="w-48 glass-panel border-r border-white/5 h-full flex flex-col py-4 z-40 flex-shrink-0">
+        <a href="/" class="flex items-center justify-center mb-6">
+            <img src="/static/logo.jpg" alt="Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
         </a>
-        <nav class="flex flex-col items-center gap-4 relative">
-            <!-- Dashboard -->
-            <a href="/" class="sidebar-icon text-gray-400 hover:text-white" title="Dashboard">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
+        <nav class="flex flex-col px-3 space-y-1">
+            <a href="/" class="sidebar-link">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
             </a>
-
-            <!-- Journal with hover dropdown -->
-            <div class="relative group">
-                <a href="/journal" class="sidebar-icon active text-gold-400" title="Journal">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                </a>
-                <div class="dropdown-menu">
-                    <a href="/journal">Daily Journal</a>
-                    <a href="/analysis">Analysis</a>
-                    <a href="/reflections">Reflections</a>
-                    <a href="/settings">Settings</a>
+            <div class="pt-2 border-t border-white/5">
+                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
+                    <span class="icon">📓</span>
+                    <span>Journal</span>
+                </div>
+                <div class="ml-2 space-y-1">
+                    <a href="/journal" class="sidebar-link active">
+                        <span class="icon">📊</span>
+                        <span>Daily Journal</span>
+                    </a>
+                    <a href="/analysis" class="sidebar-link">
+                        <span class="icon">📈</span>
+                        <span>Analysis</span>
+                    </a>
+                    <a href="/reflections" class="sidebar-link">
+                        <span class="icon">🧠</span>
+                        <span>Reflections</span>
+                    </a>
+                    <a href="/settings" class="sidebar-link">
+                        <span class="icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
                 </div>
             </div>
         </nav>
@@ -231,10 +226,10 @@
                 <div>
                     <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
                         <span class="gold-text">📓</span>
-                        <span>Macro + Journal</span>
+                        <span>Trading Journal</span>
                         <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">PRO</span>
                     </h1>
-                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Institutional Data & Trade Log</p>
+                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Discipline First. Results Follow.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="exportCSV()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest border border-gray-600/50">
@@ -250,320 +245,109 @@
         <!-- Main Scrollable -->
         <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
 
-            <!-- ===== MACRO DASHBOARD (copied from index.html) ===== -->
-            <!-- Alert Banner -->
-            <div id="alert_banner" class="hidden bg-amber-500/20 border border-amber-500/30 rounded-xl p-3 mb-4">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <span class="text-xl animate-pulse">🔔</span>
-                        <div>
-                            <p id="alert_title" class="text-xs font-bold text-white uppercase">High‑Impact Event Incoming</p>
-                            <p id="alert_description" class="text-[10px] text-gray-300">Loading...</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p id="alert_countdown" class="text-xs font-black text-amber-400">-- min</p>
-                        <p id="alert_currency" class="text-[8px] text-gray-400 font-bold uppercase">--</p>
-                    </div>
+            <!-- Stats Row -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
+                    <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
+                    <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
+                    <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
+                    <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
                 </div>
             </div>
 
-            <!-- Macro Metrics -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-                <div class="glass-panel-3d py-3 px-4 rounded-xl gold-border gold-hover flex justify-between items-center">
-                    <div>
-                        <p id="live_spot_label" class="text-[8px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                            <span class="w-1 h-1 bg-gold-400 rounded-full animate-ping"></span>
-                            Institutional Spot Index
-                        </p>
-                        <p id="gj_price" class="text-lg sm:text-xl font-black text-white mt-0.5 tracking-tight glow-text">Loading...</p>
+            <!-- Focus + Progress + Equity -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover">
+                        <h3 class="text-[9px] font-bold uppercase tracking-widest gold-text">This Week's Focus</h3>
+                        <div id="focus_message" class="text-sm text-gray-200 mt-2 leading-relaxed">Add your first trade to get started.</div>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button onclick="toggleAIPanel()" class="text-[10px] gold-bg-hover text-black bg-gray-700 px-3 py-1 rounded-md border border-white/5 transition">Open Insights</button>
+                            <button onclick="toggleAIPanel()" class="text-[10px] gold-bg-hover text-black bg-gray-700 px-3 py-1 rounded-md border border-white/5 transition">Discuss with Edge</button>
+                        </div>
+                        <p class="text-[7px] text-gray-500 mt-2 uppercase tracking-widest">GENERATED BY EDGE AI</p>
                     </div>
-                    <div class="bg-[#090a0f]/40 border border-gray-800/40 px-2 py-1 rounded-lg text-[9px] font-black text-emerald-400 tracking-wider glow-green">ACTIVE</div>
+                    <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-[9px] font-bold uppercase tracking-widest gold-text">Getting Started</h3>
+                            <span id="progress_text" class="text-xs font-bold text-white">0/7</span>
+                        </div>
+                        <div class="progress-bar mt-2"><div id="progress_fill" class="fill" style="width:0%;"></div></div>
+                        <ul id="progress_list" class="mt-3 space-y-1 text-[10px] text-gray-400"></ul>
+                    </div>
                 </div>
-
-                <div class="lg:col-span-2 glass-panel-3d py-3 px-4 rounded-xl gold-border gold-hover flex flex-col justify-between">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">CFTC Institutional Position Flow</span>
-                        <span id="cot_net_bias" class="text-[8px] font-black tracking-wide text-gold-300 uppercase bg-gold-950/40 border border-gold-800/30 px-1.5 py-0.5 rounded truncate max-w-[140px]">COMPUTING...</span>
-                    </div>
-                    <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden flex border border-white/5 my-0.5 shadow-inner">
-                        <div id="cot_bar_longs" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all duration-500" style="width:50%"></div>
-                        <div id="cot_bar_shorts" class="bg-gradient-to-r from-rose-500 to-rose-700 h-full transition-all duration-500" style="width:50%"></div>
-                    </div>
-                    <div class="flex justify-between text-[8px] font-bold tracking-wide text-gray-400">
-                        <span>Long: <strong id="cot_longs_text" class="text-emerald-400">50.0%</strong></span>
-                        <span>Short: <strong id="cot_shorts_text" class="text-rose-400">50.0%</strong></span>
-                    </div>
+                <div class="lg:col-span-2 glass-panel p-4 rounded-xl gold-border gold-hover">
+                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
+                    <div style="position:relative; height:200px;"><canvas id="equityChart"></canvas></div>
                 </div>
             </div>
 
-            <!-- Macro Biases -->
-            <h2 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">Macro Framework Biases</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <span id="daily_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Daily Sentiment</span>
-                            <span id="daily_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
-                        </div>
-                        <p id="daily_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Connecting to network matrix...</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-white/5 flex justify-between text-[9px] text-gray-400">
-                        <span>Index: <strong id="daily_metric" class="text-white font-bold ml-0.5">-</strong></span>
-                        <span>Weight: <strong id="daily_score" class="text-white font-bold ml-0.5">0</strong></span>
-                    </div>
-                </div>
-
-                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <span id="monthly_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Positioning Matrix</span>
-                            <span id="monthly_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
-                        </div>
-                        <p id="monthly_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Evaluating smart money allocations...</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-white/5 flex justify-between text-[9px] text-gray-400">
-                        <span><span id="monthly_vector_text">Data Vector:</span> <strong id="monthly_metric" class="text-white font-bold ml-0.5">-</strong></span>
-                        <span>Weight: <strong id="monthly_score" class="text-white font-bold ml-0.5">0</strong></span>
-                    </div>
-                </div>
-
-                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <span id="yearly_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Monetary Anchor</span>
-                            <span id="yearly_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
-                        </div>
-                        <p id="yearly_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Calculating yield weights...</p>
-                    </div>
-                    <div class="mt-2 pt-2 border-t border-white/5 flex justify-between text-[9px] text-gray-400">
-                        <span><span id="yearly_vector_text">Spread Proxy:</span> <strong id="yearly_metric" class="text-white font-bold ml-0.5">-</strong></span>
-                        <span>Weight: <strong id="yearly_score" class="text-white font-bold ml-0.5">0</strong></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Weekday Performance -->
-            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
-                    <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Historical Seasonality</span>
-                        <h3 id="weekday_title" class="text-xs font-extrabold text-white uppercase mt-0.5">Weekday Performance Stats</h3>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Best / Worst</p>
-                        <div class="flex items-center gap-2">
-                            <span id="weekday_best" class="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">--</span>
-                            <span id="weekday_worst" class="text-[9px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">--</span>
-                        </div>
-                    </div>
-                </div>
-                <div id="weekday_chart" class="flex items-end justify-between h-40 mt-1 gap-1 chart-bg">
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_mon" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Mon</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_tue" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Tue</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_wed" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Wed</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_thu" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Thu</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_fri" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Fri</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_sat" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sat</span>
-                    </div>
-                    <div class="flex flex-col items-center flex-1">
-                        <div id="bar_sun" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
-                        <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sun</span>
-                    </div>
-                </div>
-                <div class="flex justify-between text-[7px] text-gray-500 mt-1.5">
-                    <span>⬆️ <span id="weekday_best_value" class="text-emerald-400 font-bold">--</span></span>
-                    <span>⬇️ <span id="weekday_worst_value" class="text-rose-400 font-bold">--</span></span>
-                    <span>📊 <span id="weekday_sample_size" class="text-white font-bold">--</span> days sampled</span>
-                </div>
-            </div>
-
-            <!-- Correlation -->
-            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
-                    <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Macro Correlation</span>
-                        <h3 id="correlation_title" class="text-xs font-extrabold text-white uppercase mt-0.5">Asset Intermarket Radar</h3>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Top Correlator</p>
-                        <span id="top_correlator" class="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">--</span>
-                    </div>
-                </div>
-                <div id="correlation_grid" class="grid grid-cols-2 sm:grid-cols-3 gap-1">
-                    <div class="text-[8px] text-gray-400 font-bold">Loading...</div>
-                </div>
-            </div>
-
-            <!-- Systemic Bias Matrix -->
-            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
-                <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
-                    <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Macro Aggregator</span>
-                        <h3 class="text-xs font-extrabold text-white uppercase mt-0.5">Systemic Bias Matrix</h3>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="text-right">
-                            <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest">Net Score</p>
-                            <p id="net_matrix_score" class="text-xs font-black text-white">0</p>
-                        </div>
-                        <span id="weekly_bias_badge" class="px-2.5 py-1 rounded-md text-[9px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">EVALUATING</span>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <p id="weekly_bias_verdict" class="text-[11px] text-gray-200 leading-relaxed font-medium">Awaiting terminal compilation.</p>
-                    <div class="bg-[#090a0f]/50 border border-gray-800/40 p-2.5 rounded-lg">
-                        <p class="text-[7px] text-gray-400 font-bold uppercase tracking-widest mb-1">Execution Filter</p>
-                        <p id="weekly_execution_guideline" class="text-[10px] text-gray-300 leading-normal font-medium">System is parsing carry alignment data matrix details.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- News Feed -->
-            <div class="glass-panel p-4 rounded-xl shadow-xl gold-border gold-hover mb-6">
-                <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
-                    <div>
-                        <h3 id="news_feed_title" class="text-[10px] font-bold uppercase tracking-wider text-white">Central Bank Sentiment Feed</h3>
-                        <p id="news_feed_subtitle" class="text-[9px] text-gray-400 font-medium">Filtering live rate expectations & macro shifts</p>
-                    </div>
-                    <span class="text-[9px] font-bold bg-gold-950/60 text-gold-300 border border-gold-800/50 px-2 py-0.5 rounded shadow-sm">
-                        Avg Sentiment: <span id="news_sentiment" class="font-extrabold text-white ml-0.5">0.00</span>
-                    </span>
-                </div>
-                <ul id="headlines_container" class="space-y-2 text-[11px] text-gray-100">
-                    <li class="flex items-center space-x-2 text-gray-400 py-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span>
-                        <span>Aggregating fundamental pipeline items...</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- ===== JOURNAL DASHBOARD (from original journal.html) ===== -->
-            <div class="border-t border-white/10 pt-6 mt-2">
-                <h2 class="text-xs font-bold uppercase tracking-widest text-gold-400 mb-4">📊 Journal Dashboard</h2>
-
-                <!-- Stats Row -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
-                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
-                        <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
-                    </div>
-                    <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
-                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
-                        <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
-                    </div>
-                    <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
-                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
-                        <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
-                    </div>
-                    <div class="glass-panel-3d p-4 rounded-xl gold-border stat-card">
-                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
-                        <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
-                    </div>
-                </div>
-
-                <!-- Focus + Progress + Equity -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-                    <div class="lg:col-span-1 space-y-4">
-                        <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover">
-                            <h3 class="text-[9px] font-bold uppercase tracking-widest gold-text">This Week's Focus</h3>
-                            <div id="focus_message" class="text-sm text-gray-200 mt-2 leading-relaxed">Add your first trade to get started.</div>
-                            <div class="flex flex-wrap gap-2 mt-3">
-                                <button onclick="toggleAIPanel()" class="text-[10px] gold-bg-hover text-black bg-gray-700 px-3 py-1 rounded-md border border-white/5 transition">Open Insights</button>
-                                <button onclick="toggleAIPanel()" class="text-[10px] gold-bg-hover text-black bg-gray-700 px-3 py-1 rounded-md border border-white/5 transition">Discuss with Edge</button>
-                            </div>
-                            <p class="text-[7px] text-gray-500 mt-2 uppercase tracking-widest">GENERATED BY EDGE AI</p>
-                        </div>
-
-                        <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover">
-                            <div class="flex justify-between items-center">
-                                <h3 class="text-[9px] font-bold uppercase tracking-widest gold-text">Getting Started</h3>
-                                <span id="progress_text" class="text-xs font-bold text-white">0/7</span>
-                            </div>
-                            <div class="progress-bar mt-2"><div id="progress_fill" class="fill" style="width:0%;"></div></div>
-                            <ul id="progress_list" class="mt-3 space-y-1 text-[10px] text-gray-400"></ul>
-                        </div>
-                    </div>
-
-                    <div class="lg:col-span-2 glass-panel p-4 rounded-xl gold-border gold-hover">
-                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
-                        <div style="position:relative; height:200px;"><canvas id="equityChart"></canvas></div>
-                    </div>
-                </div>
-
-                <!-- Monthly + Win/Loss -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div class="glass-panel p-4 rounded-xl gold-border gold-hover">
-                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Monthly P&L</h3>
-                        <div style="position:relative; height:160px;"><canvas id="monthlyChart"></canvas></div>
-                    </div>
-                    <div class="glass-panel p-4 rounded-xl gold-border gold-hover">
-                        <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win / Loss</h3>
-                        <div style="position:relative; height:160px;"><canvas id="pieChart"></canvas></div>
-                    </div>
-                </div>
-
-                <!-- Filter + Table -->
+            <!-- Monthly + Win/Loss -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="glass-panel p-4 rounded-xl gold-border gold-hover">
-                    <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
-                        <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
-                        <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
-                        <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
-                        <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
-                        <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
-                        <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
-                        <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
-                        <select id="monthFilter" onchange="applyFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
-                            <option value="all">All Months</option>
-                        </select>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-[10px]">
-                            <thead>
-                                <tr class="text-gray-400 border-b border-white/5">
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Reason</th>
-                                    <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="trades_body">
-                                <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Monthly P&L</h3>
+                    <div style="position:relative; height:160px;"><canvas id="monthlyChart"></canvas></div>
+                </div>
+                <div class="glass-panel p-4 rounded-xl gold-border gold-hover">
+                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Win / Loss</h3>
+                    <div style="position:relative; height:160px;"><canvas id="pieChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Filter + Table -->
+            <div class="glass-panel p-4 rounded-xl gold-border gold-hover">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mr-1">Filter:</span>
+                    <button class="chip active" data-filter="all" onclick="setFilter('all')">All</button>
+                    <button class="chip" data-filter="GBPJPY" onclick="setFilter('GBPJPY')">GBPJPY</button>
+                    <button class="chip" data-filter="BTCUSD" onclick="setFilter('BTCUSD')">BTCUSD</button>
+                    <button class="chip" data-filter="Long" onclick="setFilter('Long')">Long</button>
+                    <button class="chip" data-filter="Short" onclick="setFilter('Short')">Short</button>
+                    <button class="chip" data-filter="win" onclick="setFilter('win')">Winners</button>
+                    <button class="chip" data-filter="loss" onclick="setFilter('loss')">Losers</button>
+                    <select id="monthFilter" onchange="applyFilter()" class="bg-[#090a0f]/60 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white">
+                        <option value="all">All Months</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[10px]">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-white/5">
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Date</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Pair</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Dir</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Entry</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Exit</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Size</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">P&L</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Reason</th>
+                                <th class="text-left py-1.5 font-bold uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades_body">
+                            <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades found.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
         </main>
     </div>
 
-    <!-- ===== FLOATING AI EDGE ===== -->
-    <button class="ai-edge-btn" onclick="toggleAIPanel()" aria-label="AI Edge"><span>🧠</span></button>
+    <!-- ===== AI Edge Button ===== -->
+    <button class="ai-edge-btn" onclick="toggleAIPanel()"><span>🧠</span></button>
 
+    <!-- ===== AI Edge Panel ===== -->
     <div id="aiPanel" class="ai-panel">
         <div class="flex justify-between items-center mb-3">
             <span class="gold-text font-bold text-xs uppercase tracking-widest">🧠 Edge AI</span>
@@ -574,7 +358,7 @@
         </div>
     </div>
 
-    <!-- ===== ADD TRADE MODAL ===== -->
+    <!-- ===== Add Trade Modal ===== -->
     <div id="addTradeModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div class="glass-panel w-full max-w-lg rounded-2xl p-6 border border-gray-800/80 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
@@ -585,11 +369,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Date</label>
-                        <input type="date" id="trade_date" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" required />
+                        <input type="date" id="trade_date" class="form-input" required />
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Pair</label>
-                        <select id="trade_pair" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
+                        <select id="trade_pair" class="form-input">
                             <option value="GBPJPY">GBPJPY</option>
                             <option value="BTCUSD">BTCUSD</option>
                             <option value="EURUSD">EURUSD</option>
@@ -601,33 +385,33 @@
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Direction</label>
-                        <select id="trade_direction" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
+                        <select id="trade_direction" class="form-input">
                             <option value="Long">Long</option>
                             <option value="Short">Short</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Size</label>
-                        <input type="number" step="0.01" id="trade_size" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="0.01" required />
+                        <input type="number" step="0.01" id="trade_size" class="form-input" placeholder="0.01" required />
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mt-2">
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Entry Price</label>
-                        <input type="number" step="0.0001" id="trade_entry" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="1.2345" required />
+                        <input type="number" step="0.0001" id="trade_entry" class="form-input" placeholder="1.2345" required />
                     </div>
                     <div>
                         <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Exit Price</label>
-                        <input type="number" step="0.0001" id="trade_exit" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="1.2345" required />
+                        <input type="number" step="0.0001" id="trade_exit" class="form-input" placeholder="1.2345" required />
                     </div>
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">P&L ($)</label>
-                    <input type="number" step="0.01" id="trade_pl" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="0.00" required />
+                    <input type="number" step="0.01" id="trade_pl" class="form-input" placeholder="0.00" required />
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Entry Reason</label>
-                    <select id="trade_entry_reason" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50">
+                    <select id="trade_entry_reason" class="form-input">
                         <option value="">Select reason</option>
                         <option value="Breakout">Breakout</option>
                         <option value="Pullback">Pullback</option>
@@ -638,7 +422,7 @@
                 </div>
                 <div class="mt-2">
                     <label class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Notes</label>
-                    <textarea id="trade_notes" rows="2" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-gold-500/50" placeholder="What did you learn?"></textarea>
+                    <textarea id="trade_notes" rows="2" class="form-input" placeholder="What did you learn?"></textarea>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button type="button" onclick="closeAddTradeModal()" class="text-gray-400 text-xs px-4 py-1.5 rounded-md hover:bg-white/5">Cancel</button>
@@ -648,18 +432,21 @@
         </div>
     </div>
 
+    <!-- ===== JAVASCRIPT ===== -->
     <script>
-        // ---------- Journal data (unchanged from earlier) ----------
+        // ---------- State ----------
         let trades = [];
         let filteredTrades = [];
         let currentFilter = 'all';
         let chartInstances = {};
 
+        // ---------- Load / Save ----------
         function loadTrades() {
             const stored = localStorage.getItem('trades');
             if (stored) {
                 try { trades = JSON.parse(stored); } catch (e) { trades = []; }
             } else {
+                // Seed with demo trades
                 trades = [
                     { id: Date.now()-100000, date: '2025-01-15', pair: 'GBPJPY', direction: 'Long', entry: 186.50, exit: 187.20, size: 0.1, pl: 70, entryReason: 'Breakout', notes: 'BOJ dovish comments' },
                     { id: Date.now()-80000, date: '2025-01-16', pair: 'BTCUSD', direction: 'Short', entry: 98000, exit: 95000, size: 0.01, pl: 300, entryReason: 'News', notes: 'Rejected at resistance' },
@@ -679,7 +466,7 @@
             localStorage.setItem('trades', JSON.stringify(trades));
         }
 
-        // ---------- Filters ----------
+        // ---------- Filter ----------
         function populateMonthFilter() {
             const months = [...new Set(trades.map(t => t.date.substring(0,7)))].sort();
             const sel = document.getElementById('monthFilter');
@@ -706,6 +493,7 @@
         function applyFilter() {
             const monthFilter = document.getElementById('monthFilter').value;
             let filtered = trades;
+
             if (currentFilter !== 'all') {
                 if (currentFilter === 'win') filtered = filtered.filter(t => t.pl > 0);
                 else if (currentFilter === 'loss') filtered = filtered.filter(t => t.pl < 0);
@@ -766,6 +554,7 @@
 
         // ---------- Charts ----------
         function renderCharts() {
+            // Equity
             const sortedAll = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
             const labelsEq = sortedAll.map(t => t.date);
             let cum = 0;
@@ -791,6 +580,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } } } }
             });
 
+            // Monthly P&L
             const months = {};
             filteredTrades.forEach(t => {
                 const key = t.date.substring(0,7);
@@ -820,6 +610,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { display: false } }, y: { ticks: { color: '#6b7280', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.03)' } } } }
             });
 
+            // Win/Loss pie
             const wins = filteredTrades.filter(t => t.pl > 0).length;
             const losses = filteredTrades.filter(t => t.pl < 0).length;
             const ctxPie = document.getElementById('pieChart').getContext('2d');
@@ -992,7 +783,7 @@
             }
         }
 
-        // ---------- Export ----------
+        // ---------- Export CSV ----------
         function exportCSV() {
             if (trades.length === 0) return alert('No trades to export.');
             const headers = ['Date','Pair','Direction','Entry','Exit','Size','P&L','EntryReason','Notes'];
@@ -1007,7 +798,7 @@
             URL.revokeObjectURL(url);
         }
 
-        // ---------- Modals ----------
+        // ---------- Modal ----------
         function openAddTradeModal() {
             document.getElementById('addTradeModal').style.display = 'flex';
             document.getElementById('trade_date').value = new Date().toISOString().split('T')[0];
@@ -1016,265 +807,14 @@
         function closeAddTradeModal() {
             document.getElementById('addTradeModal').style.display = 'none';
         }
+
         window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAddTradeModal(); });
-
-        // ---------- Macro data (from index.html) ----------
-        let currentAsset = 'gj';
-
-        function setBadgeStyle(elementId, bias) {
-            const el = document.getElementById(elementId);
-            el.innerText = bias;
-            el.className = "px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider uppercase ";
-            if (bias === "BULLISH" || bias.includes("BULLISH")) {
-                el.className += "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-            } else if (bias === "BEARISH" || bias.includes("BEARISH")) {
-                el.className += "bg-rose-500/10 text-rose-400 border border-rose-500/20";
-            } else {
-                el.className += "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-            }
-        }
-
-        function updateWeeklyStrategicMatrix(matrixData) {
-            const netScore = matrixData.net_score;
-            document.getElementById('net_matrix_score').innerText = (netScore > 0 ? "+" : "") + netScore;
-            const badge = document.getElementById('weekly_bias_badge');
-            const verdict = document.getElementById('weekly_bias_verdict');
-            const guideline = document.getElementById('weekly_execution_guideline');
-
-            badge.className = "px-2.5 py-1 rounded-md text-[9px] font-black tracking-wider uppercase transition-all duration-200 ";
-            badge.innerText = matrixData.bias;
-            verdict.innerText = matrixData.verdict;
-            guideline.innerText = matrixData.guideline;
-
-            if (netScore >= 3) {
-                badge.className += "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
-            } else if (netScore <= -3) {
-                badge.className += "bg-rose-500/10 text-rose-400 border border-rose-500/30";
-            } else {
-                badge.className += "bg-amber-500/10 text-amber-400 border border-amber-500/30";
-            }
-        }
-
-        // ---------- Fetch macro data ----------
-        async function fetchMacroData() {
-            try {
-                const res = await fetch(`/tracker/analyze?asset=${currentAsset}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-
-                if (data.status === "initializing") {
-                    await new Promise(r => setTimeout(r, 2000));
-                    const retryRes = await fetch(`/tracker/analyze?asset=${currentAsset}`);
-                    if (!retryRes.ok) throw new Error(`HTTP ${retryRes.status}`);
-                    const retryData = await retryRes.json();
-                    if (retryData.status === "initializing") {
-                        throw new Error("Cache still initializing, please try again later.");
-                    }
-                    Object.assign(data, retryData);
-                }
-
-                const price = data.underlying_market_data?.current_price;
-                if (price !== undefined) {
-                    const formattedPrice = currentAsset === 'btc'
-                        ? `$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
-                        : price.toFixed(3);
-                    document.getElementById('gj_price').innerText = formattedPrice;
-                }
-
-                const cot = data.institutional_positioning;
-                if (cot) {
-                    document.getElementById('cot_net_bias').innerText = cot.net_bias || 'N/A';
-                    document.getElementById('cot_longs_text').innerText = `${cot.longs_pct?.toFixed(1) || 0}%`;
-                    document.getElementById('cot_shorts_text').innerText = `${cot.shorts_pct?.toFixed(1) || 0}%`;
-                    document.getElementById('cot_bar_longs').style.width = `${cot.longs_pct || 50}%`;
-                    document.getElementById('cot_bar_shorts').style.width = `${cot.shorts_pct || 50}%`;
-                }
-
-                const daily = data.timeframe_bias?.daily;
-                if (daily) {
-                    setBadgeStyle('daily_badge', daily.bias || 'NEUTRAL');
-                    document.getElementById('daily_rationale').innerText = daily.rationale || '';
-                    document.getElementById('daily_metric').innerText = daily.metric || '';
-                    document.getElementById('daily_score').innerText = daily.score ?? 0;
-                }
-
-                const monthly = data.timeframe_bias?.monthly;
-                if (monthly) {
-                    setBadgeStyle('monthly_badge', monthly.bias || 'NEUTRAL');
-                    document.getElementById('monthly_rationale').innerText = monthly.rationale || '';
-                    document.getElementById('monthly_metric').innerText = monthly.metric || '';
-                    document.getElementById('monthly_score').innerText = monthly.score ?? 0;
-                }
-
-                const yearly = data.timeframe_bias?.yearly;
-                if (yearly) {
-                    setBadgeStyle('yearly_badge', yearly.bias || 'NEUTRAL');
-                    document.getElementById('yearly_rationale').innerText = yearly.rationale || '';
-                    document.getElementById('yearly_metric').innerText = yearly.metric || '';
-                    document.getElementById('yearly_score').innerText = yearly.score ?? 0;
-                }
-
-                if (data.weekly_strategic_matrix) {
-                    updateWeeklyStrategicMatrix(data.weekly_strategic_matrix);
-                }
-
-                const news = data.news_sentiment;
-                if (news) {
-                    document.getElementById('news_sentiment').innerText = news.average_score?.toFixed(2) || '0.00';
-                    const list = document.getElementById('headlines_container');
-                    list.innerHTML = "";
-                    if (news.sample_headlines && news.sample_headlines.length > 0) {
-                        news.sample_headlines.forEach(headline => {
-                            list.innerHTML += `<li class="flex items-start space-x-2 bg-white/[0.02] hover:bg-white/[0.04] p-2 rounded-lg border border-white/5 transition-all">
-                                <span class="text-gold-400 mt-0.5 flex-shrink-0">◆</span>
-                                <span class="text-gray-200 font-medium">${headline}</span>
-                            </li>`;
-                        });
-                    } else {
-                        list.innerHTML = `<li class="flex items-center space-x-2 text-gray-400 bg-white/5 p-2 rounded-lg border border-white/5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                            <span>No framework matrix updates found in this execution cycle.</span>
-                        </li>`;
-                    }
-                }
-
-                // Fetch weekday and correlation
-                await fetchWeekdayPerformance();
-                await fetchCorrelation();
-
-            } catch (error) {
-                console.error("Error fetching macro data:", error);
-                document.getElementById('gj_price').innerText = "⚠️ Offline";
-            }
-        }
-
-        // ---------- Weekday performance ----------
-        async function fetchWeekdayPerformance() {
-            try {
-                const res = await fetch(`/performance/weekday?asset=${currentAsset}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.status === "error") {
-                    document.querySelectorAll('.bar-container').forEach(el => el.style.height = '20%');
-                    document.getElementById('weekday_best').innerText = 'N/A';
-                    document.getElementById('weekday_worst').innerText = 'N/A';
-                    document.getElementById('weekday_best_value').innerText = '--';
-                    document.getElementById('weekday_worst_value').innerText = '--';
-                    document.getElementById('weekday_sample_size').innerText = '0';
-                    return;
-                }
-
-                const avgReturns = data.average_returns;
-                const dayMapping = {
-                    "Monday": "mon",
-                    "Tuesday": "tue",
-                    "Wednesday": "wed",
-                    "Thursday": "thu",
-                    "Friday": "fri",
-                    "Saturday": "sat",
-                    "Sunday": "sun"
-                };
-                const values = Object.values(avgReturns);
-                const maxAbs = Math.max(...values.map(v => Math.abs(v)), 0.01);
-
-                for (const [day, value] of Object.entries(avgReturns)) {
-                    const barId = `bar_${dayMapping[day]}`;
-                    const bar = document.getElementById(barId);
-                    if (bar) {
-                        const heightPercent = 20 + (Math.abs(value) / maxAbs) * 70;
-                        bar.style.height = `${Math.min(heightPercent, 90)}%`;
-                        const color = value > 0 ? 'bg-emerald-500/80' : (value < 0 ? 'bg-rose-500/80' : 'bg-gray-500/50');
-                        bar.className = `w-full ${color} rounded-t bar-container`;
-                        bar.title = `${day}: ${value.toFixed(2)}%`;
-                    }
-                }
-                const best = data.best_day;
-                const worst = data.worst_day;
-                document.getElementById('weekday_best').innerText = best ? `${best.name.slice(0,3)}` : '--';
-                document.getElementById('weekday_best_value').innerText = best ? `${best.return.toFixed(2)}%` : '--';
-                document.getElementById('weekday_worst').innerText = worst ? `${worst.name.slice(0,3)}` : '--';
-                document.getElementById('weekday_worst_value').innerText = worst ? `${worst.return.toFixed(2)}%` : '--';
-                document.getElementById('weekday_sample_size').innerText = '~730';
-                document.getElementById('weekday_title').innerText = currentAsset === 'gj' ? 'GBPJPY Weekday Stats' : 'BTC Weekday Stats';
-            } catch (error) {
-                console.error("Weekday performance error:", error);
-            }
-        }
-
-        // ---------- Correlation ----------
-        async function fetchCorrelation() {
-            try {
-                const res = await fetch(`/correlation?asset=${currentAsset}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                if (data.status === "error") {
-                    document.getElementById('correlation_grid').innerHTML = `<div class="text-[8px] text-gray-400">No data</div>`;
-                    return;
-                }
-                const assetCorr = data.asset_correlations;
-                delete assetCorr[currentAsset];
-                const sorted = Object.entries(assetCorr)
-                    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-
-                let gridHtml = '';
-                sorted.forEach(([name, value]) => {
-                    const color = value > 0.3 ? 'bg-emerald-500/30 text-emerald-300' :
-                                 value < -0.3 ? 'bg-rose-500/30 text-rose-300' :
-                                 'bg-gray-500/20 text-gray-400';
-                    gridHtml += `<div class="${color} p-1 rounded text-center text-[8px] font-bold truncate">
-                        ${name}: ${value.toFixed(2)}
-                    </div>`;
-                });
-                document.getElementById('correlation_grid').innerHTML = gridHtml || '<div class="text-[8px] text-gray-400">No correlations</div>';
-
-                if (sorted.length > 0) {
-                    const top = sorted[0];
-                    document.getElementById('top_correlator').innerText = `${top[0]} ${top[1].toFixed(2)}`;
-                    document.getElementById('top_correlator').className = `text-[9px] font-black px-1.5 py-0.5 rounded border ${top[1] > 0 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`;
-                }
-                document.getElementById('correlation_title').innerText = currentAsset === 'gj' ? 'GBPJPY Macro Radar' : 'BTC Macro Radar';
-            } catch (error) {
-                console.error("Correlation error:", error);
-                document.getElementById('correlation_grid').innerHTML = `<div class="text-[8px] text-gray-400">Offline</div>`;
-            }
-        }
-
-        // ---------- Alert polling (macro) ----------
-        let alertInterval = null;
-        async function fetchAlerts() {
-            try {
-                const res = await fetch(`/alerts?asset=${currentAsset}`);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                const alerts = data.alerts || [];
-                const banner = document.getElementById('alert_banner');
-                if (alerts.length > 0) {
-                    const alert = alerts[0];
-                    banner.classList.remove('hidden');
-                    document.getElementById('alert_title').innerText = alert.event;
-                    document.getElementById('alert_description').innerText = `Forecast: ${alert.forecast || 'N/A'} | Previous: ${alert.previous || 'N/A'}`;
-                    document.getElementById('alert_countdown').innerText = `${alert.minutes_to_event} min`;
-                    document.getElementById('alert_currency').innerText = alert.currency;
-                } else {
-                    banner.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error("Alert error:", error);
-            }
-        }
-
-        function startAlertPolling() {
-            if (alertInterval) clearInterval(alertInterval);
-            fetchAlerts();
-            alertInterval = setInterval(fetchAlerts, 15000);
-        }
 
         // ---------- Init ----------
         window.onload = function() {
             loadTrades();
-            fetchMacroData();
-            startAlertPolling();
         };
+        // Expose functions for inline onclick
         window.setFilter = setFilter;
         window.applyFilter = applyFilter;
         window.toggleAIPanel = toggleAIPanel;

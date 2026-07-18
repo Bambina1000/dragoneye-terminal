@@ -52,55 +52,77 @@
             border-radius: 6px;
             padding: 4px;
         }
-        .sidebar-icon {
-            width: 2.5rem;
-            height: 2.5rem;
+        /* Sidebar */
+        .sidebar-link {
             display: flex;
             align-items: center;
-            justify-content: center;
-            border-radius: 0.75rem;
-            transition: all 0.2s;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #9ca3af;
+            transition: all 0.15s;
+            text-decoration: none;
         }
-        .sidebar-icon:hover { background: rgba(212, 168, 67, 0.15); }
-        .sidebar-icon.active { background: rgba(212, 168, 67, 0.2); color: #d4a843; }
+        .sidebar-link:hover {
+            color: #d4a843;
+            background: rgba(212, 168, 67, 0.08);
+        }
+        .sidebar-link.active {
+            color: #d4a843;
+            background: rgba(212, 168, 67, 0.12);
+        }
+        .sidebar-link .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
     </style>
 </head>
 <body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-gold-500/30 select-none">
 
-    <!-- ===== SIDEBAR ===== -->
-    <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
-        <a href="/" class="mb-6">
-            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gold-500/30" />
+    <!-- ===== SIDEBAR (static nested) ===== -->
+    <aside class="w-48 glass-panel border-r border-white/5 h-full flex flex-col py-4 z-40 flex-shrink-0">
+        <a href="/" class="flex items-center justify-center mb-6">
+            <img src="/static/logo.jpg" alt="Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
         </a>
-        <nav class="flex flex-col items-center gap-4 relative">
-    <!-- Dashboard icon -->
-    <a href="/" class="sidebar-icon active" title="Dashboard">
-        <svg ...></svg>
-    </a>
+        <nav class="flex flex-col px-3 space-y-1">
+            <!-- Dashboard -->
+            <a href="/" class="sidebar-link active">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
+            </a>
 
-    <!-- Journal icon with hover dropdown -->
-    <div class="relative group">
-        <a href="/journal" class="sidebar-icon text-gray-400 hover:text-white" title="Journal">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-        </a>
-        <!-- Dropdown -->
-        <div class="absolute left-14 top-0 w-40 bg-[#0a0a0c] border border-white/10 rounded-lg shadow-2xl hidden group-hover:block z-50 py-1">
-            <a href="/journal" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Daily Journal</a>
-            <a href="/analysis" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Analysis</a>
-            <a href="/reflections" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Reflections</a>
-            <a href="/settings" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Settings</a>
-        </div>
-    </div>
-</nav>
+            <!-- Journal Section -->
+            <div class="pt-2 border-t border-white/5">
+                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
+                    <span class="icon">📓</span>
+                    <span>Journal</span>
+                </div>
+                <div class="ml-2 space-y-1">
+                    <a href="/journal" class="sidebar-link">
+                        <span class="icon">📊</span>
+                        <span>Daily Journal</span>
+                    </a>
+                    <a href="/analysis" class="sidebar-link">
+                        <span class="icon">📈</span>
+                        <span>Analysis</span>
+                    </a>
+                    <a href="/reflections" class="sidebar-link">
+                        <span class="icon">🧠</span>
+                        <span>Reflections</span>
+                    </a>
+                    <a href="/settings" class="sidebar-link">
+                        <span class="icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
     </aside>
 
-    <!-- ===== MAIN CONTENT COLUMN ===== -->
+    <!-- ===== MAIN CONTENT ===== -->
     <div class="flex flex-col flex-grow w-0 overflow-hidden">
 
         <!-- ===== ALERT BANNER ===== -->
-        <div id="alert_banner" class="hidden fixed top-16 left-16 sm:left-20 md:left-24 right-0 z-50 mx-auto max-w-7xl px-4 pointer-events-none">
+        <div id="alert_banner" class="hidden fixed top-16 left-48 right-0 z-50 mx-auto max-w-7xl px-4 pointer-events-none">
             <div class="bg-gradient-to-r from-amber-500/20 to-rose-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl p-3 shadow-2xl pointer-events-auto">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -387,9 +409,9 @@
             DragonEye Matrix Pro v3.0 // Quant Hub Terminal // Sync: <span id="sync_time" class="font-bold">-</span>
         </footer>
     </div>
-    <!-- ===== END MAIN CONTENT COLUMN ===== -->
+    <!-- ===== END MAIN CONTENT ===== -->
 
-    <!-- ===== JAVASCRIPT (unchanged, but gold theme is applied) ===== -->
+    <!-- ===== JAVASCRIPT ===== -->
     <script>
         let currentAsset = 'gj';
 
