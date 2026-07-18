@@ -9,31 +9,31 @@
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background-color: #050608; /* solid dark – no image */
+            background-color: #050608;
             color: #e5e7eb;
         }
         .glass-panel {
-            background: rgba(15, 17, 26, 0.7);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
         .glass-panel-3d {
-            background: rgba(20, 24, 38, 0.5);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            border-left: 1px solid rgba(255, 255, 255, 0.04);
-            border-right: 1px solid rgba(0, 0, 0, 0.3);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
-            transition: all 0.2s ease-in-out;
+            background: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: border-color 0.2s ease;
         }
         .glass-panel-3d:hover {
-            background: rgba(25, 30, 48, 0.6);
-            box-shadow: 0 30px 35px -5px rgba(0, 0, 0, 0.7), 0 15px 15px -5px rgba(0, 0, 0, 0.6);
-            border-top: 1px solid rgba(99, 102, 241, 0.3);
+            border-color: rgba(212, 168, 67, 0.4);
         }
-        .glow-text { text-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
+        .gold-text { color: #d4a843; }
+        .gold-border { border-color: rgba(212, 168, 67, 0.3); }
+        .gold-hover:hover { border-color: #d4a843; }
+        .gold-bg { background: #d4a843; }
+        .gold-bg-hover:hover { background: #d4a843; color: #050608; }
+        .glow-text { text-shadow: 0 0 20px rgba(212, 168, 67, 0.5); }
         .glow-green { text-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
         .calendar-frame iframe {
             width: 100%;
@@ -52,8 +52,6 @@
             border-radius: 6px;
             padding: 4px;
         }
-
-        /* Sidebar */
         .sidebar-icon {
             width: 2.5rem;
             height: 2.5rem;
@@ -63,34 +61,39 @@
             border-radius: 0.75rem;
             transition: all 0.2s;
         }
-        .sidebar-icon:hover {
-            background: rgba(255,255,255,0.05);
-        }
-        .sidebar-icon.active {
-            background: rgba(99,102,241,0.2);
-            color: #818cf8;
-        }
+        .sidebar-icon:hover { background: rgba(212, 168, 67, 0.15); }
+        .sidebar-icon.active { background: rgba(212, 168, 67, 0.2); color: #d4a843; }
     </style>
 </head>
-<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-indigo-500/30 select-none">
+<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-gold-500/30 select-none">
 
     <!-- ===== SIDEBAR ===== -->
     <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
         <a href="/" class="mb-6">
-            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-indigo-500/30" />
+            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-gold-500/30" />
         </a>
-        <nav class="flex flex-col items-center gap-4">
-            <a href="/" class="sidebar-icon active" title="Dashboard">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-            </a>
-            <a href="/journal" class="sidebar-icon text-gray-400 hover:text-white" title="Journal">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-            </a>
-        </nav>
+        <nav class="flex flex-col items-center gap-4 relative">
+    <!-- Dashboard icon -->
+    <a href="/" class="sidebar-icon active" title="Dashboard">
+        <svg ...></svg>
+    </a>
+
+    <!-- Journal icon with hover dropdown -->
+    <div class="relative group">
+        <a href="/journal" class="sidebar-icon text-gray-400 hover:text-white" title="Journal">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+        </a>
+        <!-- Dropdown -->
+        <div class="absolute left-14 top-0 w-40 bg-[#0a0a0c] border border-white/10 rounded-lg shadow-2xl hidden group-hover:block z-50 py-1">
+            <a href="/journal" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Daily Journal</a>
+            <a href="/analysis" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Analysis</a>
+            <a href="/reflections" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Reflections</a>
+            <a href="/settings" class="block px-4 py-1.5 text-xs text-gray-300 hover:bg-gold-500/10 hover:text-gold-400">Settings</a>
+        </div>
+    </div>
+</nav>
     </aside>
 
     <!-- ===== MAIN CONTENT COLUMN ===== -->
@@ -121,21 +124,21 @@
                 <div class="flex items-center space-x-3">
                     <div>
                         <h1 class="text-sm sm:text-base font-extrabold tracking-wider text-white uppercase flex items-center gap-1">
-                            Dragon<span class="text-indigo-400">Eye</span> <span class="text-[8px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-bold">PRO</span>
+                            Dragon<span class="gold-text">Eye</span> <span class="text-[8px] bg-gold-500/20 text-gold-300 px-1.5 py-0.5 rounded font-bold">PRO</span>
                         </h1>
-                        <p id="sub_title_asset" class="text-[8px] text-indigo-400/70 tracking-widest uppercase font-bold">GBPJPY Fundamental Matrix</p>
+                        <p id="sub_title_asset" class="text-[8px] text-gold-400/70 tracking-widest uppercase font-bold">GBPJPY Fundamental Matrix</p>
                     </div>
                 </div>
 
                 <div class="hidden sm:flex items-center gap-3">
                     <div class="flex bg-[#090a0f]/60 p-0.5 rounded-lg border border-white/5">
-                        <button onclick="switchAsset('gj')" id="btn_ticker_gj" class="px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all bg-indigo-600 text-white shadow">GBPJPY</button>
+                        <button onclick="switchAsset('gj')" id="btn_ticker_gj" class="px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all gold-bg text-black shadow">GBPJPY</button>
                         <button onclick="switchAsset('btc')" id="btn_ticker_btc" class="px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all text-gray-400 hover:text-white">BITCOIN</button>
                     </div>
-                    <button id="sync_btn" onclick="handleSyncClick()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] py-1.5 px-4 rounded-md transition-all uppercase tracking-widest border-t border-indigo-400/30">
+                    <button id="sync_btn" onclick="handleSyncClick()" class="gold-bg hover:bg-gold-600 text-black font-bold text-[10px] py-1.5 px-4 rounded-md transition-all uppercase tracking-widest border-t border-gold-400/30 shadow">
                         Sync
                     </button>
-                    <button onclick="openCalendarModal()" class="bg-[#1a1d2e] hover:bg-indigo-800/40 text-white font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest border border-white/10 flex items-center gap-1">
+                    <button onclick="openCalendarModal()" class="bg-[#1a1d2e] hover:bg-gold-800/40 text-white font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest border border-white/10 flex items-center gap-1">
                         <span>📅</span> Calendar
                     </button>
                 </div>
@@ -152,10 +155,10 @@
 
             <!-- Top Metrics -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-                <div class="glass-panel-3d py-3 px-4 rounded-xl border border-gray-800/60 flex justify-between items-center relative overflow-hidden">
+                <div class="glass-panel-3d py-3 px-4 rounded-xl gold-border gold-hover flex justify-between items-center relative overflow-hidden">
                     <div>
                         <p id="live_spot_label" class="text-[8px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                            <span class="w-1 h-1 bg-indigo-400 rounded-full animate-ping"></span>
+                            <span class="w-1 h-1 bg-gold-400 rounded-full animate-ping"></span>
                             Institutional Spot Index
                         </p>
                         <p id="gj_price" class="text-lg sm:text-xl font-black text-white mt-0.5 tracking-tight glow-text">Loading...</p>
@@ -165,12 +168,12 @@
                     </div>
                 </div>
 
-                <div class="lg:col-span-2 glass-panel-3d py-3 px-4 rounded-xl border border-gray-800/60 flex flex-col justify-between">
+                <div class="lg:col-span-2 glass-panel-3d py-3 px-4 rounded-xl gold-border gold-hover flex flex-col justify-between">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
                             CFTC Institutional Position Flow
                         </span>
-                        <span id="cot_net_bias" class="text-[8px] font-black tracking-wide text-indigo-300 uppercase bg-indigo-950/40 border border-indigo-800/30 px-1.5 py-0.5 rounded truncate max-w-[140px]">COMPUTING...</span>
+                        <span id="cot_net_bias" class="text-[8px] font-black tracking-wide text-gold-300 uppercase bg-gold-950/40 border border-gold-800/30 px-1.5 py-0.5 rounded truncate max-w-[140px]">COMPUTING...</span>
                     </div>
                     <div class="w-full bg-gray-900 rounded-full h-2 overflow-hidden flex border border-white/5 my-0.5 shadow-inner">
                         <div id="cot_bar_longs" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all duration-500" style="width:50%"></div>
@@ -186,10 +189,10 @@
             <!-- Macro Framework Biases -->
             <h2 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">Macro Framework Biases</h2>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
+                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
                     <div>
                         <div class="flex justify-between items-start mb-2">
-                            <span id="daily_title" class="text-[9px] font-bold uppercase text-indigo-300 tracking-wider">Daily Sentiment</span>
+                            <span id="daily_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Daily Sentiment</span>
                             <span id="daily_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
                         </div>
                         <p id="daily_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Connecting to network matrix...</p>
@@ -200,10 +203,10 @@
                     </div>
                 </div>
 
-                <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
+                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
                     <div>
                         <div class="flex justify-between items-start mb-2">
-                            <span id="monthly_title" class="text-[9px] font-bold uppercase text-indigo-300 tracking-wider">Positioning Matrix</span>
+                            <span id="monthly_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Positioning Matrix</span>
                             <span id="monthly_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
                         </div>
                         <p id="monthly_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Evaluating smart money allocations...</p>
@@ -214,10 +217,10 @@
                     </div>
                 </div>
 
-                <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
+                <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover flex flex-col justify-between min-h-[140px]">
                     <div>
                         <div class="flex justify-between items-start mb-2">
-                            <span id="yearly_title" class="text-[9px] font-bold uppercase text-indigo-300 tracking-wider">Monetary Anchor</span>
+                            <span id="yearly_title" class="text-[9px] font-bold uppercase text-gold-300 tracking-wider">Monetary Anchor</span>
                             <span id="yearly_badge" class="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider bg-gray-800/60 text-gray-400 uppercase">HOLD</span>
                         </div>
                         <p id="yearly_rationale" class="text-[11px] text-gray-200 font-medium leading-relaxed">Calculating yield weights...</p>
@@ -230,10 +233,10 @@
             </div>
 
             <!-- Weekday Performance Matrix -->
-            <div class="glass-panel-3d p-4 rounded-xl border border-gray-800/60 mb-4">
+            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
                 <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
                     <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-indigo-400">Historical Seasonality</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Historical Seasonality</span>
                         <h3 id="weekday_title" class="text-xs font-extrabold text-white uppercase mt-0.5">Weekday Performance Stats</h3>
                     </div>
                     <div class="text-right">
@@ -247,31 +250,31 @@
 
                 <div id="weekday_chart" class="flex items-end justify-between h-40 mt-1 gap-1 chart-bg">
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_mon" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_mon" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Mon</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_tue" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_tue" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Tue</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_wed" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_wed" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Wed</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_thu" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_thu" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Thu</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_fri" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_fri" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Fri</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_sat" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_sat" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sat</span>
                     </div>
                     <div class="flex flex-col items-center flex-1">
-                        <div id="bar_sun" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
+                        <div id="bar_sun" class="w-full bg-gold-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                         <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sun</span>
                     </div>
                 </div>
@@ -283,10 +286,10 @@
             </div>
 
             <!-- Correlation Matrix -->
-            <div class="glass-panel-3d p-4 rounded-xl border border-gray-800/60 mb-4">
+            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
                 <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
                     <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-indigo-400">Macro Correlation</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Macro Correlation</span>
                         <h3 id="correlation_title" class="text-xs font-extrabold text-white uppercase mt-0.5">Asset Intermarket Radar</h3>
                     </div>
                     <div class="text-right">
@@ -300,10 +303,10 @@
             </div>
 
             <!-- Systemic Bias Matrix -->
-            <div class="glass-panel-3d p-4 rounded-xl mb-4 border border-gray-800/60">
+            <div class="glass-panel-3d p-4 rounded-xl gold-border gold-hover mb-4">
                 <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
                     <div>
-                        <span class="text-[8px] font-bold uppercase tracking-widest text-indigo-400">Macro Aggregator</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Macro Aggregator</span>
                         <h3 class="text-xs font-extrabold text-white uppercase mt-0.5">Systemic Bias Matrix</h3>
                     </div>
                     <div class="flex items-center gap-3">
@@ -324,19 +327,19 @@
             </div>
 
             <!-- News Feed -->
-            <div class="glass-panel p-4 rounded-xl shadow-xl">
+            <div class="glass-panel p-4 rounded-xl shadow-xl gold-border">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
                     <div>
                         <h3 id="news_feed_title" class="text-[10px] font-bold uppercase tracking-wider text-white">Central Bank Sentiment Feed</h3>
                         <p id="news_feed_subtitle" class="text-[9px] text-gray-400 font-medium">Filtering live rate expectations & macro shifts</p>
                     </div>
-                    <span class="text-[9px] font-bold bg-indigo-950/60 text-indigo-300 border border-indigo-800/50 px-2 py-0.5 rounded shadow-sm">
+                    <span class="text-[9px] font-bold bg-gold-950/60 text-gold-300 border border-gold-800/50 px-2 py-0.5 rounded shadow-sm">
                         Avg Sentiment: <span id="news_sentiment" class="font-extrabold text-white ml-0.5">0.00</span>
                     </span>
                 </div>
                 <ul id="headlines_container" class="space-y-2 text-[11px] text-gray-100">
                     <li class="flex items-center space-x-2 text-gray-400 py-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span>
                         <span>Aggregating fundamental pipeline items...</span>
                     </li>
                 </ul>
@@ -345,7 +348,7 @@
 
         <!-- Mobile Navigation -->
         <nav class="sm:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-white/10 z-50 px-2 py-2 flex items-center justify-around shadow-2xl">
-            <button onclick="switchAsset('gj')" id="tab_gj" class="flex flex-col items-center justify-center flex-1 py-1 text-indigo-400">
+            <button onclick="switchAsset('gj')" id="tab_gj" class="flex flex-col items-center justify-center flex-1 py-1 text-gold-400">
                 <span class="text-xs font-black tracking-tighter">GBPJPY</span>
                 <span class="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-80">Matrix</span>
             </button>
@@ -354,10 +357,10 @@
                 <span class="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-80">Liquidity</span>
             </button>
             <div class="flex items-center justify-center flex-1 gap-1">
-                <button id="mobile_sync_btn" onclick="handleSyncClick()" class="bg-indigo-600 active:bg-indigo-500 text-white p-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border-t border-indigo-400/40 shadow">
+                <button id="mobile_sync_btn" onclick="handleSyncClick()" class="gold-bg active:bg-gold-600 text-black p-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border-t border-gold-400/40 shadow">
                     Sync
                 </button>
-                <button onclick="openCalendarModal()" class="bg-[#1a1d2e] active:bg-indigo-800/40 text-white p-2 rounded-lg text-[10px] font-bold uppercase border border-white/10">
+                <button onclick="openCalendarModal()" class="bg-[#1a1d2e] active:bg-gold-800/40 text-white p-2 rounded-lg text-[10px] font-bold uppercase border border-white/10">
                     📅
                 </button>
             </div>
@@ -368,7 +371,7 @@
             <div class="glass-panel w-full max-w-5xl max-h-[85vh] rounded-2xl overflow-hidden flex flex-col border border-gray-800/80">
                 <div class="px-4 py-3 border-b border-white/5 bg-[#12141c] flex justify-between items-center">
                     <div>
-                        <span class="text-[7px] font-bold tracking-widest text-indigo-400 uppercase">DragonEye Intelligence</span>
+                        <span class="text-[7px] font-bold tracking-widest text-gold-400 uppercase">DragonEye Intelligence</span>
                         <h3 class="text-xs font-extrabold text-white uppercase">Activity Calendar Log</h3>
                     </div>
                     <button onclick="closeCalendarModal()" class="text-gray-400 hover:text-white font-black text-[10px] bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">✕ CLOSE</button>
@@ -386,7 +389,7 @@
     </div>
     <!-- ===== END MAIN CONTENT COLUMN ===== -->
 
-    <!-- ===== JAVASCRIPT (unchanged) ===== -->
+    <!-- ===== JAVASCRIPT (unchanged, but gold theme is applied) ===== -->
     <script>
         let currentAsset = 'gj';
 
@@ -408,13 +411,13 @@
             const newsFeedSubtitle = document.getElementById('news_feed_subtitle');
 
             if (asset === 'gj') {
-                btnGJ.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all bg-indigo-600 text-white shadow";
+                btnGJ.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all gold-bg text-black shadow";
                 btnBTC.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all text-gray-400 hover:text-white";
-                tabGJ.className = "flex flex-col items-center justify-center flex-1 py-1 text-indigo-400";
+                tabGJ.className = "flex flex-col items-center justify-center flex-1 py-1 text-gold-400";
                 tabBTC.className = "flex flex-col items-center justify-center flex-1 py-1 text-gray-500 hover:text-gray-300";
 
                 subTitle.innerText = "GBPJPY Fundamental Matrix";
-                liveSpotLabel.innerHTML = `<span class="w-1 h-1 bg-indigo-400 rounded-full animate-ping"></span> Institutional Spot Index`;
+                liveSpotLabel.innerHTML = `<span class="w-1 h-1 bg-gold-400 rounded-full animate-ping"></span> Institutional Spot Index`;
                 dailyTitle.innerText = "Daily Sentiment";
                 monthlyTitle.innerText = "Positioning Matrix";
                 yearlyTitle.innerText = "Monetary Anchor";
@@ -423,9 +426,9 @@
                 newsFeedTitle.innerText = "Central Bank Sentiment Feed";
                 newsFeedSubtitle.innerText = "Filtering live streams for BoE, BoJ, rate expectations, and inflation shocks";
             } else {
-                btnBTC.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all bg-indigo-600 text-white shadow";
+                btnBTC.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all gold-bg text-black shadow";
                 btnGJ.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all text-gray-400 hover:text-white";
-                tabBTC.className = "flex flex-col items-center justify-center flex-1 py-1 text-indigo-400";
+                tabBTC.className = "flex flex-col items-center justify-center flex-1 py-1 text-gold-400";
                 tabGJ.className = "flex flex-col items-center justify-center flex-1 py-1 text-gray-500 hover:text-gray-300";
 
                 subTitle.innerText = "Bitcoin Liquidity Matrix";
@@ -688,7 +691,7 @@
                     if (news.sample_headlines && news.sample_headlines.length > 0) {
                         news.sample_headlines.forEach(headline => {
                             list.innerHTML += `<li class="flex items-start space-x-2 bg-white/[0.02] hover:bg-white/[0.04] p-2 rounded-lg border border-white/5 transition-all">
-                                <span class="text-indigo-400 mt-0.5 flex-shrink-0">◆</span>
+                                <span class="text-gold-400 mt-0.5 flex-shrink-0">◆</span>
                                 <span class="text-gray-200 font-medium">${headline}</span>
                             </li>`;
                         });
