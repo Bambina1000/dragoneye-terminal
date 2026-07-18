@@ -738,6 +738,14 @@ async def get_alerts(asset: str = Query("gj")):
         alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
     return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
 
+# ---------- NEW: Journal Route ----------
+@app.get("/journal", response_class=FileResponse)
+async def serve_journal():
+    journal_path = os.path.join(base_dir, "journal.html")
+    if not os.path.exists(journal_path):
+        return JSONResponse(status_code=404, content={"error": "Journal page not found"})
+    return FileResponse(journal_path)
+
 # ---------- Root ----------
 @app.get("/", response_class=FileResponse)
 async def serve_dashboard():

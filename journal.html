@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
+    <title>DragonEye // Trading Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for the equity curve -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background-color: #050608;
+            background-image: url('/static/bg.jpg');
+            background-size: cover;
+            background-repeat: repeat-y;
+            background-position: center 0px;
+            animation: slideUp 25s linear infinite;
+        }
+        @keyframes slideUp {
+            from { background-position: center 0px; }
+            to { background-position: center -2000px; }
+        }
+        @media (max-width: 640px) {
+            body { animation: none; background-attachment: fixed; }
+        }
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(15, 17, 26, 0.6) 0%, rgba(8, 9, 15, 0.7) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-3d {
+            background: linear-gradient(135deg, rgba(20, 24, 38, 0.35) 0%, rgba(10, 12, 20, 0.45) 100%);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            border-right: 1px solid rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease-in-out;
+        }
+        .glass-panel-3d:hover {
+            background: linear-gradient(135deg, rgba(25, 30, 48, 0.4) 0%, rgba(12, 15, 24, 0.5) 100%);
+            box-shadow: 0 30px 35px -5px rgba(0, 0, 0, 0.7), 0 15px 15px -5px rgba(0, 0, 0, 0.6);
+            border-top: 1px solid rgba(99, 102, 241, 0.4);
+        }
+        .sidebar-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+            transition: all 0.2s;
+        }
+        .sidebar-icon:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .sidebar-icon.active {
+            background: rgba(99,102,241,0.2);
+            color: #818cf8;
+        }
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-gray-200 h-screen w-screen overflow-hidden flex flex-row selection:bg-indigo-500/30 select-none">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="w-16 sm:w-20 md:w-24 glass-panel border-r border-white/5 h-full flex flex-col items-center py-4 z-40 flex-shrink-0">
+        <a href="/" class="mb-6">
+            <img src="/static/logo.jpg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded-lg border border-indigo-500/30" />
+        </a>
+        <nav class="flex flex-col items-center gap-4">
+            <a href="/" class="sidebar-icon text-gray-400 hover:text-white" title="Dashboard">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+            </a>
+            <a href="/journal" class="sidebar-icon active" title="Journal">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="flex flex-col flex-grow w-0 overflow-hidden">
+        <!-- Top Header -->
+        <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
+                        📓 <span>Trading Journal</span>
+                    </h1>
+                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Track, Review, Improve</p>
+                </div>
+                <button onclick="openAddTradeModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-1.5 px-4 rounded-md transition-all uppercase tracking-widest border-t border-indigo-400/30 shadow">
+                    + Add Trade
+                </button>
+            </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div class="glass-panel-3d p-4 rounded-xl stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Trades</p>
+                    <p id="stat_total" class="text-xl font-black text-white mt-1">0</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Win Rate</p>
+                    <p id="stat_winrate" class="text-xl font-black text-emerald-400 mt-1">0%</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Profit Factor</p>
+                    <p id="stat_profitfactor" class="text-xl font-black text-white mt-1">0.0</p>
+                </div>
+                <div class="glass-panel-3d p-4 rounded-xl stat-card">
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Avg P&L</p>
+                    <p id="stat_avgpl" class="text-xl font-black text-white mt-1">$0</p>
+                </div>
+            </div>
+
+            <!-- Equity Curve Chart -->
+            <div class="glass-panel p-4 rounded-xl mb-6">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Equity Curve</h3>
+                <div style="position:relative; height:200px;">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Trades Table -->
+            <div class="glass-panel p-4 rounded-xl">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Recent Trades</h3>
+                    <span id="trade_count" class="text-[9px] text-gray-500">0 entries</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[11px]">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-white/5">
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Date</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Pair</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Direction</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Entry</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Exit</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Size</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">P&L</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Notes</th>
+                                <th class="text-left py-2 font-bold uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades_body">
+                            <!-- Rows inserted by JS -->
+                            <tr><td colspan="9" class="text-center py-4 text-gray-500">No trades recorded yet. Start your journal!</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ===== ADD TRADE MODAL ===== -->
+    <div id="addTradeModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-panel w-full max-w-lg rounded-2xl p-6 border border-gray-800/80 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-extrabold text-white uppercase">Add Trade</h2>
+                <button onclick="closeAddTradeModal()" class="text-gray-400 hover:text-white text-xs bg-white/5 px-2 py-1 rounded-lg">✕</button>
+            </div>
+            <form id="tradeForm" onsubmit="saveTrade(event)">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Date</label>
+                        <input type="date" id="trade_date" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" required />
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Pair</label>
+                        <select id="trade_pair" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50">
+                            <option value="GBPJPY">GBPJPY</option>
+                            <option value="BTCUSD">BTCUSD</option>
+                            <option value="EURUSD">EURUSD</option>
+                            <option value="GBPUSD">GBPUSD</option>
+                            <option value="USDJPY">USDJPY</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-2">
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Direction</label>
+                        <select id="trade_direction" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50">
+                            <option value="Long">Long</option>
+                            <option value="Short">Short</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Size</label>
+                        <input type="number" step="0.01" id="trade_size" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="0.01" required />
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-2">
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Entry Price</label>
+                        <input type="number" step="0.0001" id="trade_entry" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="1.2345" required />
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Exit Price</label>
+                        <input type="number" step="0.0001" id="trade_exit" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="1.2345" required />
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">P&L (profit/loss in $)</label>
+                    <input type="number" step="0.01" id="trade_pl" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="0.00" required />
+                </div>
+                <div class="mt-2">
+                    <label class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Notes</label>
+                    <textarea id="trade_notes" rows="2" class="w-full bg-[#090a0f]/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/50" placeholder="Why did you take this trade?"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="closeAddTradeModal()" class="text-gray-400 text-xs px-4 py-1.5 rounded-md hover:bg-white/5">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-1.5 rounded-md uppercase tracking-widest shadow">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== JAVASCRIPT ===== -->
+    <script>
+        // ---------- STATE ----------
+        let trades = [];
+        let chartInstance = null;
+
+        // ---------- LOCAL STORAGE ----------
+        function loadTrades() {
+            const stored = localStorage.getItem('trades');
+            if (stored) {
+                try {
+                    trades = JSON.parse(stored);
+                } catch (e) {
+                    trades = [];
+                }
+            } else {
+                // Seed with some demo trades
+                trades = [
+                    { id: Date.now()-100000, date: '2025-01-15', pair: 'GBPJPY', direction: 'Long', entry: 186.50, exit: 187.20, size: 0.1, pl: 70, notes: 'BOJ dovish comments' },
+                    { id: Date.now()-80000, date: '2025-01-16', pair: 'BTCUSD', direction: 'Short', entry: 98000, exit: 95000, size: 0.01, pl: 300, notes: 'Rejected at resistance' },
+                    { id: Date.now()-60000, date: '2025-01-17', pair: 'GBPJPY', direction: 'Short', entry: 187.50, exit: 186.80, size: 0.2, pl: 140, notes: 'Break of support' },
+                ];
+                saveTrades();
+            }
+            renderAll();
+        }
+
+        function saveTrades() {
+            localStorage.setItem('trades', JSON.stringify(trades));
+        }
+
+        // ---------- RENDER ----------
+        function renderStats() {
+            const total = trades.length;
+            const wins = trades.filter(t => t.pl > 0).length;
+            const losses = trades.filter(t => t.pl < 0).length;
+            const winRate = total ? (wins / total * 100) : 0;
+            const totalProfit = trades.reduce((sum, t) => sum + (t.pl > 0 ? t.pl : 0), 0);
+            const totalLoss = trades.reduce((sum, t) => sum + (t.pl < 0 ? Math.abs(t.pl) : 0), 0);
+            const profitFactor = totalLoss ? (totalProfit / totalLoss) : (totalProfit > 0 ? Infinity : 0);
+            const avgPl = total ? (trades.reduce((s, t) => s + t.pl, 0) / total) : 0;
+
+            document.getElementById('stat_total').innerText = total;
+            document.getElementById('stat_winrate').innerText = winRate.toFixed(1) + '%';
+            document.getElementById('stat_profitfactor').innerText = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
+            document.getElementById('stat_avgpl').innerText = '$' + avgPl.toFixed(2);
+            document.getElementById('trade_count').innerText = total + ' entries';
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('trades_body');
+            if (trades.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">No trades yet. Click "Add Trade" to start your journal.</td></tr>`;
+                return;
+            }
+            // Show newest first
+            const sorted = [...trades].reverse();
+            let html = '';
+            sorted.forEach(t => {
+                const plClass = t.pl > 0 ? 'text-emerald-400' : (t.pl < 0 ? 'text-rose-400' : 'text-gray-400');
+                html += `<tr class="border-b border-white/5 hover:bg-white/5">
+                    <td class="py-2">${t.date}</td>
+                    <td class="py-2 font-bold">${t.pair}</td>
+                    <td class="py-2 ${t.direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}">${t.direction}</td>
+                    <td class="py-2">${t.entry}</td>
+                    <td class="py-2">${t.exit}</td>
+                    <td class="py-2">${t.size}</td>
+                    <td class="py-2 font-bold ${plClass}">${t.pl > 0 ? '+' : ''}${t.pl}</td>
+                    <td class="py-2 text-gray-400 text-[10px]">${t.notes || '—'}</td>
+                    <td class="py-2">
+                        <button onclick="deleteTrade(${t.id})" class="text-rose-400 hover:text-rose-300 text-[10px] font-bold">Delete</button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            // Sort by date ascending
+            const sorted = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const labels = sorted.map(t => t.date);
+            const cumulative = [];
+            let sum = 0;
+            sorted.forEach(t => {
+                sum += t.pl;
+                cumulative.push(sum);
+            });
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['No Data'],
+                    datasets: [{
+                        label: 'Equity',
+                        data: labels.length ? cumulative : [0],
+                        borderColor: '#818cf8',
+                        backgroundColor: 'rgba(99,102,241,0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#818cf8',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#6b7280', font: { size: 8 } },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        },
+                        y: {
+                            ticks: { color: '#6b7280', font: { size: 8 } },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderAll() {
+            renderStats();
+            renderTable();
+            renderChart();
+        }
+
+        // ---------- CRUD ----------
+        function saveTrade(e) {
+            e.preventDefault();
+            const date = document.getElementById('trade_date').value;
+            const pair = document.getElementById('trade_pair').value;
+            const direction = document.getElementById('trade_direction').value;
+            const entry = parseFloat(document.getElementById('trade_entry').value);
+            const exit = parseFloat(document.getElementById('trade_exit').value);
+            const size = parseFloat(document.getElementById('trade_size').value);
+            const pl = parseFloat(document.getElementById('trade_pl').value);
+            const notes = document.getElementById('trade_notes').value.trim();
+
+            if (!date || !entry || !exit || !size || isNaN(pl)) {
+                alert('Please fill all required fields with valid numbers.');
+                return;
+            }
+
+            const newTrade = {
+                id: Date.now(),
+                date,
+                pair,
+                direction,
+                entry,
+                exit,
+                size,
+                pl,
+                notes,
+            };
+            trades.push(newTrade);
+            saveTrades();
+            renderAll();
+            closeAddTradeModal();
+        }
+
+        function deleteTrade(id) {
+            if (confirm('Delete this trade?')) {
+                trades = trades.filter(t => t.id !== id);
+                saveTrades();
+                renderAll();
+            }
+        }
+
+        // ---------- MODAL ----------
+        function openAddTradeModal() {
+            const modal = document.getElementById('addTradeModal');
+            modal.style.display = 'flex';
+            // Default to today
+            document.getElementById('trade_date').value = new Date().toISOString().split('T')[0];
+            // Reset form
+            document.getElementById('tradeForm').reset();
+        }
+
+        function closeAddTradeModal() {
+            document.getElementById('addTradeModal').style.display = 'none';
+        }
+
+        // Close modal on Escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeAddTradeModal();
+        });
+
+        // ---------- INIT ----------
+        window.onload = loadTrades;
+    </script>
+
+</body>
+</html>
