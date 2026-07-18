@@ -51,11 +51,12 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .bar-container {
             transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            min-height: 8px; /* Ensure bars are always visible */
+            min-height: 12px;
         }
         .chart-bg {
-            background: rgba(0,0,0,0.2);
-            border-radius: 4px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 6px;
+            padding: 4px;
         }
     </style>
 </head>
@@ -176,7 +177,7 @@
             </div>
         </div>
 
-        <!-- Weekday Performance Matrix -->
+        <!-- Weekday Performance Matrix – BARS SCALED TO 90% -->
         <div class="glass-panel-3d p-4 rounded-xl border border-gray-800/60 mb-4">
             <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
                 <div>
@@ -192,34 +193,34 @@
                 </div>
             </div>
 
-            <!-- Mini Bar Chart with background for visibility -->
-            <div id="weekday_chart" class="flex items-end justify-between h-24 mt-1 gap-1 chart-bg p-1">
+            <!-- LARGER CHART: h-40 (160px) and bars will scale to 90% of that -->
+            <div id="weekday_chart" class="flex items-end justify-between h-40 mt-1 gap-1 chart-bg">
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_mon" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_mon" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Mon</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_tue" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_tue" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Tue</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_wed" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_wed" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Wed</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_thu" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_thu" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Thu</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_fri" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_fri" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Fri</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_sat" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_sat" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sat</span>
                 </div>
                 <div class="flex flex-col items-center flex-1">
-                    <div id="bar_sun" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:15%; min-height:8px;"></div>
+                    <div id="bar_sun" class="w-full bg-indigo-500/70 rounded-t bar-container" style="height:20%; min-height:12px;"></div>
                     <span class="text-[6px] text-gray-400 font-bold uppercase mt-1">Sun</span>
                 </div>
             </div>
@@ -434,7 +435,7 @@
             btnMobile.disabled = false;
         }
 
-        // Fetch weekday performance with logs
+        // Fetch weekday performance – bars now scale to 90% height
         async function fetchWeekdayPerformance() {
             try {
                 console.log(`Fetching weekday performance for ${currentAsset}...`);
@@ -445,8 +446,7 @@
 
                 if (data.status === "error") {
                     console.error("Weekday performance error:", data.message);
-                    // Show "No data" on bars
-                    document.querySelectorAll('.bar-container').forEach(el => el.style.height = '15%');
+                    document.querySelectorAll('.bar-container').forEach(el => el.style.height = '20%');
                     document.getElementById('weekday_best').innerText = 'N/A';
                     document.getElementById('weekday_worst').innerText = 'N/A';
                     document.getElementById('weekday_best_value').innerText = '--';
@@ -466,22 +466,21 @@
                     "Sunday": "sun"
                 };
 
-                // Find max absolute value for scaling bars (normalize to 0-100%)
+                // Find max absolute value for scaling bars
                 const values = Object.values(avgReturns);
-                const maxAbs = Math.max(...values.map(v => Math.abs(v)), 0.01); // avoid division by zero
+                const maxAbs = Math.max(...values.map(v => Math.abs(v)), 0.01);
 
-                // Update each bar
+                // Update each bar – scale to 90% max, min 20%
                 for (const [day, value] of Object.entries(avgReturns)) {
                     const barId = `bar_${dayMapping[day]}`;
                     const bar = document.getElementById(barId);
                     if (bar) {
-                        // Scale: min height 15% (for visibility), max 95%
-                        const heightPercent = Math.max(15, (Math.abs(value) / maxAbs) * 80 + 15);
-                        bar.style.height = `${heightPercent}%`;
-                        // Color: positive = green, negative = red
+                        // Scale: min 20%, max 90%
+                        const heightPercent = 20 + (Math.abs(value) / maxAbs) * 70;
+                        bar.style.height = `${Math.min(heightPercent, 90)}%`;
+                        // Color
                         const color = value > 0 ? 'bg-emerald-500/80' : (value < 0 ? 'bg-rose-500/80' : 'bg-gray-500/50');
                         bar.className = `w-full ${color} rounded-t bar-container`;
-                        // Show value on hover
                         bar.title = `${day}: ${value.toFixed(2)}%`;
                         console.log(`Bar ${day}: value=${value.toFixed(2)}%, height=${heightPercent}%`);
                     }
@@ -495,16 +494,12 @@
                 document.getElementById('weekday_worst').innerText = worst ? `${worst.name.slice(0,3)}` : '--';
                 document.getElementById('weekday_worst_value').innerText = worst ? `${worst.return.toFixed(2)}%` : '--';
 
-                // Approximate sample size (2 years ≈ 730 days)
                 document.getElementById('weekday_sample_size').innerText = '~730';
-
-                // Update title
                 document.getElementById('weekday_title').innerText = currentAsset === 'gj' ? 'GBPJPY Weekday Stats' : 'BTC Weekday Stats';
 
             } catch (error) {
                 console.error("Error fetching weekday performance:", error);
-                // Show fallback
-                document.querySelectorAll('.bar-container').forEach(el => el.style.height = '15%');
+                document.querySelectorAll('.bar-container').forEach(el => el.style.height = '20%');
                 document.getElementById('weekday_best').innerText = 'N/A';
                 document.getElementById('weekday_worst').innerText = 'N/A';
                 document.getElementById('weekday_best_value').innerText = '--';
