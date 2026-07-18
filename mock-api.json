@@ -1,0 +1,95 @@
+{
+    "gj": {
+        "status": "healthy",
+        "underlying_market_data": {
+            "current_price": 218.4810028076172
+        },
+        "news_sentiment": {
+            "average_score": 0.0,
+            "total_items_matched": 0,
+            "sample_headlines": []
+        },
+        "timeframe_bias": {
+            "daily": {
+                "bias": "BEARISH",
+                "score": 0,
+                "metric": "Index: 0.00"
+            },
+            "monthly": {
+                "bias": "BULLISH",
+                "score": 0,
+                "metric": "NET LONG Leveraged Funds (+8.8%)"
+            },
+            "yearly": {
+                "bias": "BULLISH",
+                "score": 3,
+                "metric": "Live Sovereign 10Y Spread: +3.41% (Gilt vs JGB Proxied)"
+            }
+        },
+        "weekly_strategic_matrix": {
+            "net_score": 3,
+            "bias": "BULLISH",
+            "verdict": "Institutional parameters support positive cross-border carry allocations. Wide dynamic macro interest differentials continue to isolate the pair as an outperforming destination for risk-on sessions."
+        },
+        "institutional_positioning": {
+            "longs_pct": 54.4,
+            "shorts_pct": 45.6,
+            "net_bias": "NET LONG Leveraged Funds (+8.8%)",
+            "score_weight": 0
+        },
+        "technical": {
+            "rsi": 73.18011037166985,
+            "sma_20": 215.75389938354493,
+            "sma_50": 218.4810028076172,
+            "volume_ratio": 1.0,
+            "price": 218.4810028076172
+        }
+    },
+    "btc": {
+        "status": "healthy",
+        "underlying_market_data": {
+            "current_price": 64063.05859375
+        },
+        "news_sentiment": {
+            "average_score": 0.0,
+            "total_items_matched": 0,
+            "sample_headlines": []
+        },
+        "timeframe_bias": {
+            "daily": {
+                "bias": "BEARISH",
+                "score": 0,
+                "metric": "Index: 0.00"
+            },
+            "monthly": {
+                "bias": "BULLISH",
+                "score": 0,
+                "metric": "NET LONG Leveraged Funds (+8.8%)"
+            },
+            "yearly": {
+                "bias": "BULLISH",
+                "score": 3,
+                "metric": "Live Sovereign 10Y Spread: +3.41% (Gilt vs JGB Proxied)"
+            }
+        },
+        "weekly_strategic_matrix": {
+            "net_score": 3,
+            "bias": "BULLISH",
+            "verdict": "Institutional parameters support positive cross-border carry allocations. Wide dynamic macro interest differentials continue to isolate the pair as an outperforming destination for risk-on sessions."
+        },
+        "institutional_positioning": {
+            "longs_pct": 54.4,
+            "shorts_pct": 45.6,
+            "net_bias": "NET LONG Leveraged Funds (+8.8%)",
+            "score_weight": 0
+        },
+        "technical": {
+            "rsi": 54.615600599439695,
+            "sma_20": 62872.8306640625,
+            "sma_50": 64063.05859375,
+            "volume_ratio": 0.6053438350312079,
+            "price": 64063.05859375
+        }
+    },
+    "timestamp": "2026-07-18T15:23:05.246006Z"
+}

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+httpx
+feedparser
+yfinance
+nltk
+pandas
+numpy
+slowapi
+python-multipart
