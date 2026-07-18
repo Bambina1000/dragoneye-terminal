@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
     <title>NEKTA DL // Replay Backtester Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Candlestick plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
-    <!-- TIME ADAPTER – fixes the "This method is not implemented" error -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
@@ -556,10 +553,14 @@
             }
         }
 
-        // ---------- Candlestick Chart ----------
+        // ---------- Candlestick Chart (with robust destroy) ----------
         function drawCandlestickChart() {
             const ctx = document.getElementById('replayChart').getContext('2d');
-            if (replayChartInstance) replayChartInstance.destroy();
+            // Destroy any existing chart instance safely
+            if (replayChartInstance) {
+                try { replayChartInstance.destroy(); } catch (e) {}
+                replayChartInstance = null;
+            }
 
             const visibleData = chartData.slice(0, currentBarIndex + 1);
             const ohlc = visibleData.map(d => ({
