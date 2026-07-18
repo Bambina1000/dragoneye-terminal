@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>DragonEye // Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Major+Mono+Display&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background-color: #050608;
+            color: #e5e7eb;
+        }
+        .glass-panel {
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .glass-panel-3d {
+            background: rgba(10, 10, 12, 0.8);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: border-color 0.2s ease;
+        }
+        .glass-panel-3d:hover {
+            border-color: rgba(212, 168, 67, 0.4);
+        }
+        .gold-text { color: #d4a843; }
+        .gold-border { border-color: rgba(212, 168, 67, 0.3); }
+        .gold-hover:hover { border-color: #d4a843; }
+        .gold-bg { background: #d4a843; }
+        .gold-bg-hover:hover { background: #d4a843; color: #050608; }
+        .sidebar-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+            transition: all 0.2s;
+        }
+        .sidebar-icon:hover { background: rgba(212, 168, 67, 0.15); }
+        .sidebar-icon.active { background: rgba(212, 168, 67, 0.2); color: #d4a843; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .sidebar {
+            background: rgba(10, 10, 12, 0.95);
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            width: 200px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 0.75rem;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 40;
+        }
+        .sidebar::-webkit-scrollbar { width: 3px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #d4a843; border-radius: 9999px; }
+        .sidebar .logo-area {
+            padding: 0 0.5rem 1rem 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 1rem;
+        }
+        .sidebar .logo-area img {
+            width: 32px;
+            height: 32px;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(212,168,67,0.3);
+        }
+        .sidebar .search-box {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.7rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+            cursor: text;
+        }
+        .sidebar .search-box .shortcut {
+            margin-left: auto;
+            font-size: 0.6rem;
+            color: #4b5563;
+        }
+        .sidebar .nav-section {
+            margin-bottom: 1.25rem;
+        }
+        .sidebar .nav-section .section-title {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            font-weight: 700;
+            padding: 0 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .sidebar .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.45rem 0.65rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #9ca3af;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .sidebar .nav-item:hover {
+            background: rgba(212, 168, 67, 0.08);
+            color: #fff;
+        }
+        .sidebar .nav-item.active {
+            background: rgba(212, 168, 67, 0.12);
+            color: #d4a843;
+        }
+        .sidebar .nav-item .icon { font-size: 0.9rem; width: 1.25rem; text-align: center; }
+        .sidebar .nav-sub { padding-left: 1.75rem; }
+        .sidebar .nav-sub .nav-item { font-size: 0.7rem; padding: 0.3rem 0.65rem; color: #6b7280; }
+        .sidebar .nav-sub .nav-item:hover { color: #d1d5db; }
+        .sidebar .nav-sub .nav-item.active { color: #d4a843; }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 60px; padding: 0.75rem 0.5rem; }
+            .sidebar .logo-area { padding: 0 0.25rem 0.75rem 0.25rem; }
+            .sidebar .search-box { display: none; }
+            .sidebar .nav-item { font-size: 0; padding: 0.5rem; justify-content: center; }
+            .sidebar .nav-item .icon { font-size: 1.1rem; margin: 0; }
+            .sidebar .nav-sub { padding-left: 0; }
+            .sidebar .nav-sub .nav-item { font-size: 0; padding: 0.5rem; justify-content: center; }
+            .sidebar .section-title { text-align: center; font-size: 0.5rem; }
+        }
+        /* Form styles */
+        .form-input {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            color: #e5e7eb;
+            font-size: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #d4a843;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-row">
+
+    <!-- ===== SIDEBAR (same as journal) ===== -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/static/logo.jpg" alt="Logo" />
+        </div>
+        <div class="search-box" onclick="document.getElementById('sidebarSearch').focus()">
+            <span>🔍</span>
+            <input id="sidebarSearch" type="text" placeholder="Search..." class="bg-transparent border-0 outline-none text-white text-xs w-full" />
+            <span class="shortcut">⌘K</span>
+        </div>
+
+        <div class="nav-section">
+            <div class="section-title">Trade Log</div>
+            <a href="/journal" class="nav-item">
+                <span class="icon">📊</span> Daily Journal
+            </a>
+            <div class="nav-sub">
+                <a href="#" class="nav-item"><span class="icon">📈</span> Analysis</a>
+                <a href="#" class="nav-item"><span class="icon">🧠</span> Reflections</a>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <div class="section-title">MORE</div>
+            <a href="#" class="nav-item"><span class="icon">🎓</span> DT Programs</a>
+            <a href="/settings" class="nav-item active"><span class="icon">⚙️</span> Settings</a>
+            <a href="#" class="nav-item"><span class="icon">📘</span> Playbook</a>
+        </div>
+
+        <div class="nav-section" style="margin-top: auto;">
+            <a href="#" class="nav-item"><span class="icon">🔄</span> Trade Replay</a>
+            <a href="#" class="nav-item"><span class="icon">🚀</span> Forward Tests</a>
+        </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="flex flex-col flex-grow w-0 overflow-hidden">
+
+        <!-- Header -->
+        <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
+                        <span class="gold-text">⚙️</span>
+                        <span>Settings</span>
+                    </h1>
+                    <p class="text-[8px] text-gray-400 tracking-widest uppercase">Configure your trading environment</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="saveSettings()" class="gold-bg hover:bg-gold-600 text-black font-bold text-[10px] py-1.5 px-4 rounded-md transition-all uppercase tracking-widest shadow">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Scrollable -->
+        <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-4xl w-full mx-auto pb-24 sm:pb-8">
+
+            <div class="space-y-6">
+
+                <!-- Account Preferences -->
+                <div class="glass-panel-3d p-5 rounded-xl gold-border gold-hover">
+                    <h2 class="text-xs font-bold uppercase tracking-widest gold-text mb-4">Account Preferences</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label">Default Pair</label>
+                            <select id="defaultPair" class="form-input">
+                                <option value="GBPJPY">GBPJPY</option>
+                                <option value="BTCUSD">BTCUSD</option>
+                                <option value="EURUSD">EURUSD</option>
+                                <option value="GBPUSD">GBPUSD</option>
+                                <option value="USDJPY">USDJPY</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Risk per Trade (%)</label>
+                            <input type="number" id="riskPerTrade" class="form-input" step="0.1" min="0.1" max="10" value="1.0" />
+                        </div>
+                        <div>
+                            <label class="form-label">Account Currency</label>
+                            <select id="accountCurrency" class="form-input">
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="JPY">JPY</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Time Zone</label>
+                            <select id="timeZone" class="form-input">
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">NY (EST)</option>
+                                <option value="Europe/London">London (GMT)</option>
+                                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="glass-panel-3d p-5 rounded-xl gold-border gold-hover">
+                    <h2 class="text-xs font-bold uppercase tracking-widest gold-text mb-4">Notifications</h2>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" id="alertSound" checked /> Alert sound
+                        </label>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" id="emailReports" /> Weekly email report
+                        </label>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" id="pushAlerts" /> Push notifications for high-impact news
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Data & Export -->
+                <div class="glass-panel-3d p-5 rounded-xl gold-border gold-hover">
+                    <h2 class="text-xs font-bold uppercase tracking-widest gold-text mb-4">Data & Export</h2>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="exportCSV()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold text-[10px] py-2 px-4 rounded-md transition-all uppercase tracking-widest border border-gray-600/50">
+                            Export CSV
+                        </button>
+                        <button onclick="clearAllData()" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold text-[10px] py-2 px-4 rounded-md transition-all uppercase tracking-widest border border-rose-500/20">
+                            Clear All Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // ---------- Load saved settings ----------
+        function loadSettings() {
+            const defaultPair = localStorage.getItem('settings_defaultPair') || 'GBPJPY';
+            const riskPerTrade = localStorage.getItem('settings_riskPerTrade') || '1.0';
+            const accountCurrency = localStorage.getItem('settings_accountCurrency') || 'USD';
+            const timeZone = localStorage.getItem('settings_timeZone') || 'UTC';
+            const alertSound = localStorage.getItem('settings_alertSound') !== 'false';
+            const emailReports = localStorage.getItem('settings_emailReports') === 'true';
+            const pushAlerts = localStorage.getItem('settings_pushAlerts') === 'true';
+
+            document.getElementById('defaultPair').value = defaultPair;
+            document.getElementById('riskPerTrade').value = riskPerTrade;
+            document.getElementById('accountCurrency').value = accountCurrency;
+            document.getElementById('timeZone').value = timeZone;
+            document.getElementById('alertSound').checked = alertSound;
+            document.getElementById('emailReports').checked = emailReports;
+            document.getElementById('pushAlerts').checked = pushAlerts;
+        }
+
+        // ---------- Save settings ----------
+        function saveSettings() {
+            localStorage.setItem('settings_defaultPair', document.getElementById('defaultPair').value);
+            localStorage.setItem('settings_riskPerTrade', document.getElementById('riskPerTrade').value);
+            localStorage.setItem('settings_accountCurrency', document.getElementById('accountCurrency').value);
+            localStorage.setItem('settings_timeZone', document.getElementById('timeZone').value);
+            localStorage.setItem('settings_alertSound', document.getElementById('alertSound').checked);
+            localStorage.setItem('settings_emailReports', document.getElementById('emailReports').checked);
+            localStorage.setItem('settings_pushAlerts', document.getElementById('pushAlerts').checked);
+
+            // Show feedback
+            const btn = document.querySelector('button[onclick="saveSettings()"]');
+            const originalText = btn.innerText;
+            btn.innerText = '✅ Saved!';
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+
+        // ---------- Clear all data ----------
+        function clearAllData() {
+            if (confirm('Are you sure? This will delete ALL your trades and settings.')) {
+                localStorage.removeItem('trades');
+                localStorage.removeItem('settings_defaultPair');
+                localStorage.removeItem('settings_riskPerTrade');
+                localStorage.removeItem('settings_accountCurrency');
+                localStorage.removeItem('settings_timeZone');
+                localStorage.removeItem('settings_alertSound');
+                localStorage.removeItem('settings_emailReports');
+                localStorage.removeItem('settings_pushAlerts');
+                alert('All data cleared.');
+                loadSettings();
+            }
+        }
+
+        // ---------- Export CSV (reuse from journal) ----------
+        function exportCSV() {
+            const trades = JSON.parse(localStorage.getItem('trades') || '[]');
+            if (trades.length === 0) return alert('No trades to export.');
+            const headers = ['Date','Pair','Direction','Entry','Exit','Size','P&L','EntryReason','Notes'];
+            const rows = trades.map(t => [t.date, t.pair, t.direction, t.entry, t.exit, t.size, t.pl, t.entryReason || '', t.notes || '']);
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'journal_export.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ---------- Init ----------
+        window.onload = function() {
+            loadSettings();
+        };
+    </script>
+</body>
+</html>

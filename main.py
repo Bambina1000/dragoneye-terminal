@@ -44,7 +44,7 @@ logging.basicConfig(
 logger = logging.getLogger("MacroEngine")
 logger.addFilter(RequestIdFilter())
 
-# ---------- NLTK Setup (Render‑compatible) ----------
+# ---------- NLTK Setup ----------
 nltk.data.path.append('/tmp/nltk_data')
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
@@ -146,7 +146,6 @@ ASSET_CURRENCIES = {
 EASTERN = pytz.timezone('America/New_York')
 
 async def fetch_calendar_events() -> List[Dict]:
-    """Fetch the weekly economic calendar from ForexFactory feed."""
     url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -161,7 +160,6 @@ async def fetch_calendar_events() -> List[Dict]:
         return []
 
 def parse_event_time(event: Dict) -> datetime | None:
-    """Convert the event's date/time to UTC datetime."""
     try:
         date_str = event.get('date')
         time_str = event.get('time')
@@ -184,7 +182,6 @@ def parse_event_time(event: Dict) -> datetime | None:
         return None
 
 async def update_alerts(asset: str):
-    """Update the alerts list for a specific asset."""
     currencies = ASSET_CURRENCIES.get(asset, [])
     if not currencies:
         return
@@ -224,7 +221,6 @@ async def update_alerts(asset: str):
         UPCOMING_ALERTS[asset] = upcoming
 
 async def calendar_alert_daemon(shutdown_event: asyncio.Event):
-    """Background task that periodically checks for alerts."""
     while not shutdown_event.is_set():
         try:
             for asset in ["gj", "btc"]:
@@ -583,7 +579,7 @@ static_dir_path = os.path.join(base_dir, "static")
 os.makedirs(static_dir_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir_path), name="static")
 
-# ---------- Routes ----------
+# ---------- Existing Routes ----------
 @app.get("/tracker/analyze")
 @limiter.limit("30/minute")
 async def get_live_tracker_results(request: Request, asset: str = Query("gj", description="Asset token key: 'gj' or 'btc'")):
@@ -738,13 +734,34 @@ async def get_alerts(asset: str = Query("gj")):
         alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
     return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
 
-# ---------- NEW: Journal Route ----------
+# ---------- NEW: Journal Routes ----------
 @app.get("/journal", response_class=FileResponse)
 async def serve_journal():
     journal_path = os.path.join(base_dir, "journal.html")
     if not os.path.exists(journal_path):
         return JSONResponse(status_code=404, content={"error": "Journal page not found"})
     return FileResponse(journal_path)
+
+@app.get("/analysis", response_class=FileResponse)
+async def serve_analysis():
+    analysis_path = os.path.join(base_dir, "analysis.html")
+    if not os.path.exists(analysis_path):
+        return JSONResponse(status_code=404, content={"error": "Analysis page not found"})
+    return FileResponse(analysis_path)
+
+@app.get("/reflections", response_class=FileResponse)
+async def serve_reflections():
+    reflections_path = os.path.join(base_dir, "reflections.html")
+    if not os.path.exists(reflections_path):
+        return JSONResponse(status_code=404, content={"error": "Reflections page not found"})
+    return FileResponse(reflections_path)
+
+@app.get("/settings", response_class=FileResponse)
+async def serve_settings():
+    settings_path = os.path.join(base_dir, "settings.html")
+    if not os.path.exists(settings_path):
+        return JSONResponse(status_code=404, content={"error": "Settings page not found"})
+    return FileResponse(settings_path)
 
 # ---------- Root ----------
 @app.get("/", response_class=FileResponse)
@@ -764,7 +781,6 @@ async def websocket_endpoint(websocket: WebSocket, asset: str):
         await websocket.close()
         return
     try:
-        # Send initial data
         data = GLOBAL_MACRO_CACHE.get(clean, {})
         await websocket.send_json({"type": "macro", "data": data})
         async with alerts_lock:
