@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
     <title>NEKTA DL // Replay Backtester Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Chart.js first -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Load the date adapter immediately after Chart.js -->
+    <!-- Luxon date adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
-    <!-- Then the financial plugin -->
+    <!-- Candlestick plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
@@ -421,7 +421,6 @@
         let currentSessionId = null;
         let chartData = [];
         let currentBarIndex = 0;
-        let replayChartInstance = null;
         let trades = [];
         let currentPosition = null;
         let pendingOrder = null;
@@ -556,18 +555,18 @@
             }
         }
 
-        // ---------- Candlestick Chart with robust destroy ----------
+        // ---------- Robust Candlestick Chart ----------
         function drawCandlestickChart() {
             const canvas = document.getElementById('replayChart');
             const ctx = canvas.getContext('2d');
 
-            // 1. Destroy any existing chart instance
-            if (replayChartInstance) {
-                replayChartInstance.destroy();
-                replayChartInstance = null;
+            // 1. Destroy any existing chart attached to this canvas
+            const existingChart = Chart.getChart('replayChart');
+            if (existingChart) {
+                existingChart.destroy();
             }
 
-            // 2. Clear the canvas completely (extra safety)
+            // 2. Clear the canvas context
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // 3. Prepare data
@@ -581,7 +580,7 @@
             }));
 
             // 4. Create new chart
-            replayChartInstance = new Chart(ctx, {
+            const newChart = new Chart(ctx, {
                 type: 'candlestick',
                 data: {
                     datasets: [{
@@ -633,6 +632,9 @@
                     }
                 }
             });
+
+            // Store reference globally for safety
+            window.replayChartInstance = newChart;
             updateSliderLabels();
         }
 
@@ -1011,7 +1013,6 @@
 
         // ---------- Init ----------
         window.onload = function() {
-            // Default date range: 2020-01-01 to today
             const start = new Date('2020-01-01');
             const end = new Date();
             document.getElementById('startDate').value = start.toISOString().split('T')[0];
