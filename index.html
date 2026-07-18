@@ -47,7 +47,6 @@
             border: none;
             border-radius: 8px;
         }
-        /* Hide scrollbars for app shell clean aesthetics */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -57,7 +56,6 @@
     <!-- Top App Header -->
     <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <!-- Brand Layout -->
             <div class="flex items-center space-x-3">
                 <img src="/static/logo.jpg" alt="DragonEye Logo" class="w-8 h-8 object-cover rounded-lg border border-indigo-500/30" />
                 <div>
@@ -68,7 +66,6 @@
                 </div>
             </div>
 
-            <!-- Header Controls: Visible only on Desktop screens -->
             <div class="hidden sm:flex items-center gap-3">
                 <div class="flex bg-[#090a0f]/60 p-0.5 rounded-lg border border-white/5">
                     <button onclick="switchAsset('gj')" id="btn_ticker_gj" class="px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all bg-indigo-600 text-white shadow">GBPJPY</button>
@@ -82,7 +79,6 @@
                 </button>
             </div>
 
-            <!-- Mini Live Spot for mobile header space -->
             <div class="sm:hidden text-right">
                 <p id="gj_price_mini" class="text-xs font-black text-white tracking-tight glow-text">Loading...</p>
                 <p class="text-[7px] text-emerald-400 font-bold uppercase tracking-widest">LIVE</p>
@@ -93,9 +89,7 @@
     <!-- Main Scrollable Dashboard Canvas -->
     <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
 
-        <!-- App Metric Cards Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-            <!-- Price Card -->
             <div class="glass-panel-3d py-3 px-4 rounded-xl border border-gray-800/60 flex justify-between items-center relative overflow-hidden">
                 <div>
                     <p id="live_spot_label" class="text-[8px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
@@ -109,7 +103,6 @@
                 </div>
             </div>
 
-            <!-- CFTC Flow Dynamic Bar -->
             <div class="lg:col-span-2 glass-panel-3d py-3 px-4 rounded-xl border border-gray-800/60 flex flex-col justify-between">
                 <div class="flex justify-between items-center mb-1">
                     <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
@@ -128,10 +121,8 @@
             </div>
         </div>
 
-        <!-- System Architecture Biases -->
         <h2 class="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">Macro Framework Biases</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <!-- Daily Sentiment -->
             <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
                 <div>
                     <div class="flex justify-between items-start mb-2">
@@ -146,7 +137,6 @@
                 </div>
             </div>
 
-            <!-- Positioning Matrix -->
             <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
                 <div>
                     <div class="flex justify-between items-start mb-2">
@@ -161,7 +151,6 @@
                 </div>
             </div>
 
-            <!-- Monetary Anchor -->
             <div class="glass-panel-3d p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
                 <div>
                     <div class="flex justify-between items-start mb-2">
@@ -177,7 +166,6 @@
             </div>
         </div>
 
-        <!-- Weekly Strategic Aggregator Panel -->
         <div class="glass-panel-3d p-4 rounded-xl mb-4 border border-gray-800/60">
             <div class="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
                 <div>
@@ -201,7 +189,6 @@
             </div>
         </div>
 
-        <!-- Macro News Stream Feed -->
         <div class="glass-panel p-4 rounded-xl shadow-xl">
             <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
                 <div>
@@ -221,7 +208,7 @@
         </div>
     </main>
 
-    <!-- Native-style Sticky Navigation Tab Bar for Mobile Vewports -->
+    <!-- Mobile Navigation -->
     <nav class="sm:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-white/10 z-50 px-2 py-2 flex items-center justify-around shadow-2xl">
         <button onclick="switchAsset('gj')" id="tab_gj" class="flex flex-col items-center justify-center flex-1 py-1 text-indigo-400">
             <span class="text-xs font-black tracking-tighter">GBPJPY</span>
@@ -231,8 +218,6 @@
             <span class="text-xs font-black tracking-tighter">BITCOIN</span>
             <span class="text-[8px] font-bold uppercase tracking-widest mt-0.5 opacity-80">Liquidity</span>
         </button>
-
-        <!-- Action Trigger Buttons Hub inside clean navigation setup -->
         <div class="flex items-center justify-center flex-1 gap-1">
             <button id="mobile_sync_btn" onclick="handleSyncClick()" class="bg-indigo-600 active:bg-indigo-500 text-white p-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border-t border-indigo-400/40 shadow">
                 Sync
@@ -243,7 +228,7 @@
         </div>
     </nav>
 
-    <!-- Calendar Intelligence Modal Overlay -->
+    <!-- Calendar Modal -->
     <div id="calendar_modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-3 bg-black/85 backdrop-blur-md">
         <div class="glass-panel w-full max-w-5xl max-h-[85vh] rounded-2xl overflow-hidden flex flex-col border border-gray-800/80">
             <div class="px-4 py-3 border-b border-white/5 bg-[#12141c] flex justify-between items-center">
@@ -259,12 +244,11 @@
         </div>
     </div>
 
-    <!-- Application Fixed Footer Status Line (Desktop screen visibility optimization) -->
+    <!-- Footer -->
     <footer class="hidden sm:block glass-panel border-t border-white/5 py-1.5 text-center text-[9px] text-gray-400 font-medium tracking-wide flex-shrink-0 z-40">
         DragonEye Matrix Pro v3.0 // Quant Hub Terminal // Sync: <span id="sync_time" class="font-bold">-</span>
     </footer>
 
-    <!-- Core App Module Scripts Controller -->
     <script>
         let currentAsset = 'gj';
 
@@ -285,7 +269,6 @@
             const newsFeedTitle = document.getElementById('news_feed_title');
             const newsFeedSubtitle = document.getElementById('news_feed_subtitle');
 
-            // Responsive Mobile Sticky Navigation Highlight State Adjuster
             if (asset === 'gj') {
                 btnGJ.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all bg-indigo-600 text-white shadow";
                 btnBTC.className = "px-3 py-1 rounded-md text-[10px] font-black tracking-wider transition-all text-gray-400 hover:text-white";
@@ -387,66 +370,99 @@
 
         async function fetchData() {
             try {
-                // Pointing directly to the static JSON configuration asset file in your repository
-                const res = await fetch('./mock-api.json');
+                // 🔥 FIX: Use the live API endpoint instead of mock-api.json
+                const res = await fetch(`/tracker/analyze?asset=${currentAsset}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
-                const price = data.underlying_market_data.current_price;
-                const formattedPrice = currentAsset === 'btc'
-                    ? `$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
-                    : price.toFixed(3);
-
-                document.getElementById('gj_price').innerText = formattedPrice;
-                document.getElementById('gj_price_mini').innerText = formattedPrice;
-
-                const cot = data.institutional_positioning;
-                document.getElementById('cot_net_bias').innerText = cot.net_bias;
-                document.getElementById('cot_longs_text').innerText = `${cot.longs_pct.toFixed(1)}%`;
-                document.getElementById('cot_shorts_text').innerText = `${cot.shorts_pct.toFixed(1)}%`;
-                document.getElementById('cot_bar_longs').style.width = `${cot.longs_pct}%`;
-                document.getElementById('cot_bar_shorts').style.width = `${cot.shorts_pct}%`;
-
-                const daily = data.timeframe_bias.daily;
-                setBadgeStyle('daily_badge', daily.bias);
-                document.getElementById('daily_rationale').innerText = daily.rationale;
-                document.getElementById('daily_metric').innerText = daily.metric;
-                document.getElementById('daily_score').innerText = daily.score;
-
-                const monthly = data.timeframe_bias.monthly;
-                setBadgeStyle('monthly_badge', monthly.bias);
-                document.getElementById('monthly_rationale').innerText = monthly.rationale;
-                document.getElementById('monthly_metric').innerText = monthly.metric;
-                document.getElementById('monthly_score').innerText = monthly.score;
-
-                const yearly = data.timeframe_bias.yearly;
-                setBadgeStyle('yearly_badge', yearly.bias);
-                document.getElementById('yearly_rationale').innerText = yearly.rationale;
-                document.getElementById('yearly_metric').innerText = yearly.metric;
-                document.getElementById('yearly_score').innerText = yearly.score;
-
-                updateWeeklyStrategicMatrix(data.weekly_strategic_matrix);
-
-                const news = data.news_sentiment;
-                document.getElementById('news_sentiment').innerText = news.average_score.toFixed(2);
-                const list = document.getElementById('headlines_container');
-                list.innerHTML = "";
-                if (news.sample_headlines.length === 0) {
-                    list.innerHTML = `<li class="flex items-center space-x-2 text-gray-400 bg-white/5 p-2 rounded-lg border border-white/5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                        <span>No framework matrix updates found in this execution cycle.</span>
-                    </li>`;
-                } else {
-                    news.sample_headlines.forEach(headline => {
-                        list.innerHTML += `<li class="flex items-start space-x-2 bg-white/[0.02] hover:bg-white/[0.04] p-2 rounded-lg border border-white/5 transition-all">
-                            <span class="text-indigo-400 mt-0.5 flex-shrink-0">◆</span>
-                            <span class="text-gray-200 font-medium">${headline}</span>
-                        </li>`;
-                    });
+                // Check if cache is still initializing
+                if (data.status === "initializing") {
+                    // Wait a bit and retry once
+                    await new Promise(r => setTimeout(r, 2000));
+                    const retryRes = await fetch(`/tracker/analyze?asset=${currentAsset}`);
+                    if (!retryRes.ok) throw new Error(`HTTP ${retryRes.status}`);
+                    const retryData = await retryRes.json();
+                    if (retryData.status === "initializing") {
+                        throw new Error("Cache still initializing, please try again later.");
+                    }
+                    // Use retry data
+                    Object.assign(data, retryData);
                 }
 
-                document.getElementById('sync_time').innerText = new Date(data.timestamp).toLocaleTimeString();
+                const price = data.underlying_market_data?.current_price;
+                if (price !== undefined) {
+                    const formattedPrice = currentAsset === 'btc'
+                        ? `$${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        : price.toFixed(3);
+                    document.getElementById('gj_price').innerText = formattedPrice;
+                    document.getElementById('gj_price_mini').innerText = formattedPrice;
+                }
+
+                const cot = data.institutional_positioning;
+                if (cot) {
+                    document.getElementById('cot_net_bias').innerText = cot.net_bias || 'N/A';
+                    document.getElementById('cot_longs_text').innerText = `${cot.longs_pct?.toFixed(1) || 0}%`;
+                    document.getElementById('cot_shorts_text').innerText = `${cot.shorts_pct?.toFixed(1) || 0}%`;
+                    document.getElementById('cot_bar_longs').style.width = `${cot.longs_pct || 50}%`;
+                    document.getElementById('cot_bar_shorts').style.width = `${cot.shorts_pct || 50}%`;
+                }
+
+                const daily = data.timeframe_bias?.daily;
+                if (daily) {
+                    setBadgeStyle('daily_badge', daily.bias || 'NEUTRAL');
+                    document.getElementById('daily_rationale').innerText = daily.rationale || '';
+                    document.getElementById('daily_metric').innerText = daily.metric || '';
+                    document.getElementById('daily_score').innerText = daily.score ?? 0;
+                }
+
+                const monthly = data.timeframe_bias?.monthly;
+                if (monthly) {
+                    setBadgeStyle('monthly_badge', monthly.bias || 'NEUTRAL');
+                    document.getElementById('monthly_rationale').innerText = monthly.rationale || '';
+                    document.getElementById('monthly_metric').innerText = monthly.metric || '';
+                    document.getElementById('monthly_score').innerText = monthly.score ?? 0;
+                }
+
+                const yearly = data.timeframe_bias?.yearly;
+                if (yearly) {
+                    setBadgeStyle('yearly_badge', yearly.bias || 'NEUTRAL');
+                    document.getElementById('yearly_rationale').innerText = yearly.rationale || '';
+                    document.getElementById('yearly_metric').innerText = yearly.metric || '';
+                    document.getElementById('yearly_score').innerText = yearly.score ?? 0;
+                }
+
+                if (data.weekly_strategic_matrix) {
+                    updateWeeklyStrategicMatrix(data.weekly_strategic_matrix);
+                }
+
+                const news = data.news_sentiment;
+                if (news) {
+                    document.getElementById('news_sentiment').innerText = news.average_score?.toFixed(2) || '0.00';
+                    const list = document.getElementById('headlines_container');
+                    list.innerHTML = "";
+                    if (news.sample_headlines && news.sample_headlines.length > 0) {
+                        news.sample_headlines.forEach(headline => {
+                            list.innerHTML += `<li class="flex items-start space-x-2 bg-white/[0.02] hover:bg-white/[0.04] p-2 rounded-lg border border-white/5 transition-all">
+                                <span class="text-indigo-400 mt-0.5 flex-shrink-0">◆</span>
+                                <span class="text-gray-200 font-medium">${headline}</span>
+                            </li>`;
+                        });
+                    } else {
+                        list.innerHTML = `<li class="flex items-center space-x-2 text-gray-400 bg-white/5 p-2 rounded-lg border border-white/5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            <span>No framework matrix updates found in this execution cycle.</span>
+                        </li>`;
+                    }
+                }
+
+                if (data.timestamp) {
+                    document.getElementById('sync_time').innerText = new Date(data.timestamp).toLocaleTimeString();
+                }
             } catch (error) {
-                console.error("Error connecting to terminal data layer context:", error);
+                console.error("Error fetching live data:", error);
+                // Show a friendly error in the UI
+                document.getElementById('gj_price').innerText = "⚠️ Offline";
+                document.getElementById('gj_price_mini').innerText = "⚠️ Offline";
             }
         }
 
