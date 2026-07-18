@@ -1,1016 +1,885 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
-    <title>NEKTA DL // Replay Backtester Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <style>
-        * { font-family: 'Plus Jakarta Sans', sans-serif; }
-        body {
-            background-color: #050608;
-            color: #e5e7eb;
-        }
-        .glass-panel {
-            background: rgba(10, 10, 12, 0.85);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .glass-panel-3d {
-            background: rgba(10, 10, 12, 0.8);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            transition: border-color 0.2s ease;
-        }
-        .glass-panel-3d:hover {
-            border-color: rgba(212, 168, 67, 0.4);
-        }
-        .gold-text { color: #d4a843; }
-        .gold-border { border-color: rgba(212, 168, 67, 0.3); }
-        .gold-hover:hover { border-color: #d4a843; }
-        .gold-bg { background: #d4a843; }
-        .gold-bg-hover:hover { background: #d4a843; color: #050608; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+import os
+import asyncio
+import logging
+import httpx
+import feedparser
+import yfinance as yf
+import sqlite3
+import uuid
+import pandas as pd
+import numpy as np
+from datetime import datetime, timezone, timedelta
+from contextlib import asynccontextmanager, contextmanager
+from typing import List, Dict, Any
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import nltk
+import uvicorn
+import pytz
+import json
 
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #9ca3af;
-            transition: all 0.15s;
-            text-decoration: none;
-        }
-        .sidebar-link:hover {
-            color: #d4a843;
-            background: rgba(212, 168, 67, 0.08);
-        }
-        .sidebar-link.active {
-            color: #d4a843;
-            background: rgba(212, 168, 67, 0.12);
-        }
-        .sidebar-link .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+# ---------- Rate Limiting ----------
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-        .sidebar-mobile {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 280px;
-            max-width: 80vw;
-            background: rgba(10,10,12,0.98);
-            backdrop-filter: blur(8px);
-            border-right: 1px solid rgba(255,255,255,0.06);
-            z-index: 40;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            padding: 1rem;
-            overflow-y: auto;
+# ---------- Logging with Request ID ----------
+from contextvars import ContextVar
+
+request_id_var = ContextVar('request_id', default='')
+
+
+class RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = request_id_var.get()
+        return True
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s"
+)
+logger = logging.getLogger("MacroEngine")
+logger.addFilter(RequestIdFilter())
+
+# ---------- NLTK Setup ----------
+nltk.data.path.append('/tmp/nltk_data')
+try:
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except LookupError:
+    nltk.download('vader_lexicon', download_dir='/tmp/nltk_data', quiet=True)
+    nltk.download('punkt', download_dir='/tmp/nltk_data', quiet=True)
+
+sia = SentimentIntensityAnalyzer()
+sia.lexicon.update({
+    'hawkish': 2.5, 'dovish': -2.5, 'hike': 1.5, 'cut': -1.5,
+    'tightening': -1.0, 'easing': 1.0, 'inflation': -0.5,
+    'stimulus': 1.5, 'intervention': -1.0
+})
+
+# ---------- Database Setup ----------
+DB_PATH = "macro_data.db"
+
+
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def init_db():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS macro_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset TEXT,
+                timestamp TEXT,
+                price REAL,
+                sentiment REAL,
+                bias_score INTEGER,
+                rsi REAL,
+                sma_20 REAL,
+                sma_50 REAL,
+                volume_ratio REAL
+            )
+        """)
+        conn.commit()
+
+
+init_db()
+
+# ---------- Global Cache & Lock ----------
+GLOBAL_MACRO_CACHE: Dict[str, Dict[str, Any]] = {
+    "gj": {"status": "initializing", "timestamp": None},
+    "btc": {"status": "initializing", "timestamp": None}
+}
+cache_lock = asyncio.Lock()
+
+# ---------- Calendar Alerts ----------
+UPCOMING_ALERTS: Dict[str, List[Dict]] = {
+    "gj": [],
+    "btc": []
+}
+alerts_lock = asyncio.Lock()
+
+# ---------- News Feeds ----------
+NEWS_FEEDS = [
+    "https://www.dailyfx.com/feeds/forex-market-news",
+    "https://cn.reuters.com/rssFeed/worldNews"
+]
+
+
+# ---------- Pydantic Models ----------
+class AssetConfig(BaseModel):
+    ticker: str
+    keywords: List[str]
+    bullish_verdict: str
+    bearish_verdict: str
+    neutral_verdict: str
+
+
+ASSET_REGISTRY: Dict[str, AssetConfig] = {
+    "btc": AssetConfig(
+        ticker="BTC-USD",
+        keywords=["btc", "bitcoin", "crypto", "etf", "sec", "fed", "liquidity", "m2", "digital asset", "coinbase",
+                  "halving", "whale", "satoshi"],
+        bullish_verdict="Quant vectors demonstrate clean upward institutional framework rules. CME Open Interest stability mixed with positive corporate balance-sheet tracking profiles point toward sustained structural accumulation cycles.",
+        bearish_verdict="Liquidity flow equations highlight active risk distribution guidelines. Contractions inside net dollar aggregates combined with systemic spot distribution channels suggest defensive configurations.",
+        neutral_verdict="Balanced quantitative factors discovered. Short-term derivative accumulation zones are contending with a flat global liquidity environment, compressing spot operations inside range bounds."
+    ),
+    "gj": AssetConfig(
+        ticker="GBPJPY=X",
+        keywords=["gbp", "jpy", "pound", "yen", "boj", "boe", "bank of england", "bank of japan", "inflation", "cpi",
+                  "rate cut", "rate hike", "monetary policy", "interest rate", "gilt", "jgb", "carry trade", "hawkish",
+                  "dovish", "andrew bailey", "kazuo ueda"],
+        bullish_verdict="Institutional parameters support positive cross-border carry allocations. Wide dynamic macro interest differentials continue to isolate the pair as an outperforming destination for risk-on sessions.",
+        bearish_verdict="Macro metrics flag key institutional carry distribution alerts. Unwinding signals within systemic positioning loops combined with rising hawkish shifts invalidate mid-term buying rules.",
+        neutral_verdict="Multi-timeframe divergence identified. Long-term fundamental carry premiums are balancing near-term sentiment contractions, compressing institutional books inside range brackets."
+    )
+}
+
+# ---------- Alert Engine ----------
+ASSET_CURRENCIES = {
+    "gj": ["GBP", "JPY", "USD"],
+    "btc": ["USD"]
+}
+EASTERN = pytz.timezone('America/New_York')
+
+
+async def fetch_calendar_events() -> List[Dict]:
+    url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                logger.warning(f"Calendar feed returned {response.status_code}")
+                return []
+            data = response.json()
+            return data
+    except Exception as e:
+        logger.error(f"Failed to fetch calendar: {e}")
+        return []
+
+
+def parse_event_time(event: Dict) -> datetime | None:
+    try:
+        date_str = event.get('date')
+        time_str = event.get('time')
+        if not date_str or not time_str:
+            return None
+        if time_str in ("TBD", "All Day"):
+            return None
+        dt_str = f"{date_str} {time_str}"
+        for fmt in ["%b %d, %Y %I:%M%p", "%b %d, %Y %H:%M"]:
+            try:
+                dt = datetime.strptime(dt_str, fmt)
+                eastern_dt = EASTERN.localize(dt)
+                utc_dt = eastern_dt.astimezone(pytz.UTC)
+                return utc_dt
+            except ValueError:
+                continue
+        return None
+    except Exception as e:
+        logger.warning(f"Error parsing event time: {e}")
+        return None
+
+
+async def update_alerts(asset: str):
+    currencies = ASSET_CURRENCIES.get(asset, [])
+    if not currencies:
+        return
+    events = await fetch_calendar_events()
+    if not events:
+        async with alerts_lock:
+            UPCOMING_ALERTS[asset] = []
+        return
+
+    now_utc = datetime.now(pytz.UTC)
+    upcoming = []
+    for event in events:
+        impact = event.get('impact', '').lower()
+        if impact != 'high':
+            continue
+        currency = event.get('currency')
+        if currency not in currencies:
+            continue
+        event_time = parse_event_time(event)
+        if not event_time:
+            continue
+        if event_time <= now_utc:
+            continue
+        diff = (event_time - now_utc).total_seconds() / 60
+        if diff <= 30 and diff >= 0:
+            upcoming.append({
+                "event": event.get('event', 'Unknown'),
+                "currency": currency,
+                "impact": impact,
+                "time_utc": event_time.isoformat(),
+                "minutes_to_event": round(diff),
+                "forecast": event.get('forecast', ''),
+                "previous": event.get('previous', '')
+            })
+    upcoming.sort(key=lambda x: x['minutes_to_event'])
+    async with alerts_lock:
+        UPCOMING_ALERTS[asset] = upcoming
+
+
+async def calendar_alert_daemon(shutdown_event: asyncio.Event):
+    while not shutdown_event.is_set():
+        try:
+            for asset in ["gj", "btc"]:
+                await update_alerts(asset)
+            for _ in range(180):
+                if shutdown_event.is_set():
+                    return
+                await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Alert daemon error: {e}")
+            await asyncio.sleep(60)
+
+
+# ---------- Technical Indicators ----------
+async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    try:
+        loop = asyncio.get_running_loop()
+        ticker = yf.Ticker(config.ticker)
+        hist = await loop.run_in_executor(None, lambda: ticker.history(period="30d"))
+        if hist.empty:
+            return {"error": "No historical data"}
+
+        delta = hist['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+
+        sma_20 = hist['Close'].rolling(window=20).mean()
+        sma_50 = hist['Close'].rolling(window=50).mean()
+
+        avg_volume = hist['Volume'].mean()
+        current_volume = hist['Volume'].iloc[-1]
+        volume_ratio = current_volume / avg_volume if avg_volume else 1.0
+
+        return {
+            "rsi": float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0,
+            "sma_20": float(sma_20.iloc[-1]) if not pd.isna(sma_20.iloc[-1]) else float(hist['Close'].iloc[-1]),
+            "sma_50": float(sma_50.iloc[-1]) if not pd.isna(sma_50.iloc[-1]) else float(hist['Close'].iloc[-1]),
+            "volume_ratio": float(volume_ratio),
+            "price": float(hist['Close'].iloc[-1])
         }
-        .sidebar-mobile.open { transform: translateX(0); }
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 39;
-        }
-        .sidebar-overlay.open { display: block; }
+    except Exception as e:
+        logger.error(f"Technical indicator error for {asset}: {str(e)}")
+        return {"error": str(e)}
 
-        @media (min-width: 640px) {
-            .sidebar-mobile { display: none; }
-            .sidebar-overlay { display: none !important; }
-            .sidebar-desktop { display: flex !important; }
-        }
-        @media (max-width: 639px) {
-            .sidebar-desktop { display: none !important; }
-        }
 
-        .form-input {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            width: 100%;
-            color: #e5e7eb;
-            font-size: 0.75rem;
-            transition: border-color 0.2s;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: #d4a843;
-        }
-        .form-label {
-            display: block;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #9ca3af;
-            margin-bottom: 0.25rem;
-        }
+# ---------- Core Processors ----------
+def is_market_open(asset: str) -> bool:
+    if asset == "btc":
+        return True
+    now_utc = datetime.now(timezone.utc)
+    day = now_utc.weekday()
+    hour = now_utc.hour
+    if day == 5:  # Saturday
+        return False
+    if day == 4 and hour >= 21:
+        return False
+    if day == 6 and hour < 21:
+        return False
+    return True
 
-        .session-item {
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background 0.15s;
-            border-left: 2px solid transparent;
-        }
-        .session-item:hover {
-            background: rgba(255,255,255,0.03);
-        }
-        .session-item.active {
-            border-left-color: #d4a843;
-            background: rgba(212,168,67,0.06);
-        }
-        .session-item .name { font-size: 0.8rem; font-weight: 600; }
-        .session-item .meta { font-size: 0.65rem; color: #6b7280; }
-        .session-item .balance { font-size: 0.7rem; color: #d4a843; font-weight: 600; }
 
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 4px;
-            border-radius: 9999px;
-            background: rgba(255,255,255,0.1);
-            outline: none;
-            transition: background 0.2s;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #d4a843;
-            cursor: pointer;
-            transition: 0.15s;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-        input[type="range"]::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #d4a843;
-            cursor: pointer;
-            border: none;
-        }
+async def fetch_feed_async(client: httpx.AsyncClient, url: str) -> str:
+    try:
+        response = await client.get(url, timeout=5.0)
+        return response.text if response.status_code == 200 else ""
+    except Exception as e:
+        logger.warning(f"Failed to fetch RSS node {url}: {str(e)}")
+        return ""
 
-        .stat-box {
-            padding: 0.25rem 0.5rem;
-            background: rgba(255,255,255,0.02);
-            border-radius: 0.25rem;
-            border-left: 2px solid rgba(212,168,67,0.3);
-        }
-        .stat-box .label { font-size: 0.55rem; text-transform: uppercase; color: #6b7280; }
-        .stat-box .value { font-size: 0.9rem; font-weight: 700; }
 
-        #replayChart {
-            height: 400px;
-        }
-        .order-badge {
-            font-size: 0.6rem;
-            font-weight: 700;
-            padding: 0.1rem 0.4rem;
-            border-radius: 9999px;
-            background: rgba(212,168,67,0.15);
-            color: #d4a843;
-        }
-    </style>
-</head>
-<body class="h-screen w-screen overflow-hidden flex flex-row">
+async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    try:
+        async with httpx.AsyncClient() as client:
+            tasks = [fetch_feed_async(client, url) for url in NEWS_FEEDS]
+            raw_feeds = await asyncio.gather(*tasks)
 
-    <!-- Sidebar overlay -->
-    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+        loop = asyncio.get_running_loop()
 
-    <!-- Sidebar (mobile) -->
-    <aside id="sidebarMobile" class="sidebar-mobile flex flex-col">
-        <div class="flex items-center justify-between mb-6">
-            <img src="/static/logo.jpg" alt="NEKTA DL Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
-            <button onclick="closeSidebar()" class="text-gray-400 hover:text-white text-xl">✕</button>
-        </div>
-        <nav class="flex flex-col space-y-1">
-            <a href="/" class="sidebar-link"><span class="icon">📊</span> Dashboard</a>
-            <div class="pt-2 border-t border-white/5">
-                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
-                    <span class="icon">📓</span> Journal
-                </div>
-                <div class="ml-2 space-y-1">
-                    <a href="/journal" class="sidebar-link"><span class="icon">📊</span> Daily Journal</a>
-                    <a href="/analysis" class="sidebar-link"><span class="icon">📈</span> Analysis</a>
-                    <a href="/reflections" class="sidebar-link"><span class="icon">🧠</span> Reflections</a>
-                    <a href="/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a>
-                </div>
-            </div>
-            <div class="pt-2 border-t border-white/5">
-                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
-                    <span class="icon">🛠️</span> Tools
-                </div>
-                <div class="ml-2 space-y-1">
-                    <a href="/backtest" class="sidebar-link active"><span class="icon">📊</span> Backtester</a>
-                    <a href="#" class="sidebar-link"><span class="icon">🔄</span> Trade Replay</a>
-                    <a href="#" class="sidebar-link"><span class="icon">🚀</span> Forward Tests</a>
-                </div>
-            </div>
-            <div class="pt-2 border-t border-white/5 mt-auto">
-                <button onclick="createNewSession()" class="w-full gold-bg text-black font-bold text-xs py-2 rounded-lg transition-all hover:bg-gold-600">+ New Session</button>
-            </div>
-        </nav>
-    </aside>
+        def sync_parse_and_score():
+            local_headlines = []
+            local_scores = []
+            for xml_data in raw_feeds:
+                if not xml_data:
+                    continue
+                try:
+                    feed = feedparser.parse(xml_data)
+                    for entry in feed.entries[:25]:
+                        title = entry.title
+                        title_lower = title.lower()
+                        if any(kw in title_lower for kw in config.keywords):
+                            local_headlines.append(title)
+                            local_scores.append(sia.polarity_scores(title_lower)['compound'])
+                except Exception as parse_err:
+                    logger.error(f"Error parsing structural XML block: {str(parse_err)}")
+            return local_headlines, local_scores
 
-    <!-- Sidebar (desktop) -->
-    <aside id="sidebarDesktop" class="sidebar-desktop w-48 glass-panel border-r border-white/5 h-full flex flex-col py-4 z-40 flex-shrink-0">
-        <a href="/" class="flex items-center justify-center mb-6">
-            <img src="/static/logo.jpg" alt="NEKTA DL Logo" class="w-10 h-10 object-cover rounded-lg border border-gold-500/30" />
-        </a>
-        <nav class="flex flex-col px-3 space-y-1">
-            <a href="/" class="sidebar-link"><span class="icon">📊</span> Dashboard</a>
-            <div class="pt-2 border-t border-white/5">
-                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
-                    <span class="icon">📓</span> Journal
-                </div>
-                <div class="ml-2 space-y-1">
-                    <a href="/journal" class="sidebar-link"><span class="icon">📊</span> Daily Journal</a>
-                    <a href="/analysis" class="sidebar-link"><span class="icon">📈</span> Analysis</a>
-                    <a href="/reflections" class="sidebar-link"><span class="icon">🧠</span> Reflections</a>
-                    <a href="/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a>
-                </div>
-            </div>
-            <div class="pt-2 border-t border-white/5">
-                <div class="flex items-center gap-3 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-400">
-                    <span class="icon">🛠️</span> Tools
-                </div>
-                <div class="ml-2 space-y-1">
-                    <a href="/backtest" class="sidebar-link active"><span class="icon">📊</span> Backtester</a>
-                    <a href="#" class="sidebar-link"><span class="icon">🔄</span> Trade Replay</a>
-                    <a href="#" class="sidebar-link"><span class="icon">🚀</span> Forward Tests</a>
-                </div>
-            </div>
-            <div class="pt-2 border-t border-white/5 mt-auto">
-                <button onclick="createNewSession()" class="w-full gold-bg text-black font-bold text-xs py-2 rounded-lg transition-all hover:bg-gold-600">+ New Session</button>
-            </div>
-        </nav>
-    </aside>
+        headlines, scores = await loop.run_in_executor(None, sync_parse_and_score)
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        return {"avg_sentiment": avg_score, "news_analyzed": len(headlines), "latest_headlines": headlines[:5]}
+    except Exception as e:
+        logger.error(f"Sentiment analysis pipeline failure: {str(e)}")
+        return {"avg_sentiment": 0.0, "news_analyzed": 0, "latest_headlines": []}
 
-    <!-- MAIN CONTENT -->
-    <div class="flex flex-col flex-grow w-0 overflow-hidden">
 
-        <header class="glass-panel border-b border-white/5 px-4 py-3 z-40 flex-shrink-0">
-            <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <button id="hamburgerBtn" class="sm:hidden text-gray-400 hover:text-white text-2xl" onclick="toggleSidebar()">☰</button>
-                    <div>
-                        <h1 class="text-sm sm:text-base font-extrabold text-white uppercase flex items-center gap-2">
-                            <span class="gold-text">📊</span>
-                            <span>Replay Backtester</span>
-                            <span class="text-[8px] bg-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-bold">PRO</span>
-                        </h1>
-                        <p class="text-[8px] text-gray-400 tracking-widest uppercase">Advanced order types & position sizing</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <select id="symbolSelect" class="form-input w-28 text-xs" onchange="loadChartData()">
-                        <option value="GBPJPY=X">GBPJPY</option>
-                        <option value="EURUSD=X">EURUSD</option>
-                        <option value="BTC-USD">BTCUSD</option>
-                        <option value="GC=F">Gold</option>
-                        <option value="ES=F">S&P 500</option>
-                    </select>
-                    <input type="date" id="startDate" class="form-input w-28 text-xs" />
-                    <input type="date" id="endDate" class="form-input w-28 text-xs" />
-                    <button onclick="loadChartData()" class="gold-bg hover:bg-gold-600 text-black font-bold text-[10px] py-1.5 px-3 rounded-md transition-all uppercase tracking-widest shadow">
-                        Load
-                    </button>
-                </div>
-            </div>
-        </header>
+async def get_live_asset_rate_async(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    try:
+        loop = asyncio.get_running_loop()
+        ticker = yf.Ticker(config.ticker)
+        hist = await loop.run_in_executor(None, lambda: ticker.history(period="5d"))
+        if hist.empty:
+            return {"status": "error", "message": f"Empty historical response vector returned for {config.ticker}"}
+        return {"current_price": float(hist['Close'].iloc[-1]), "status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-        <main class="flex-grow overflow-y-auto no-scrollbar px-3 sm:px-6 py-4 max-w-7xl w-full mx-auto pb-24 sm:pb-8">
-            <div class="flex flex-col lg:flex-row gap-4 h-full">
-                <!-- Session List (left) -->
-                <div class="lg:w-64 flex-shrink-0 glass-panel-3d p-3 rounded-xl gold-border h-fit max-h-[70vh] overflow-y-auto">
-                    <h3 class="text-[9px] font-bold uppercase tracking-widest text-gold-400 mb-2">Your Sessions</h3>
-                    <div id="sessionList" class="space-y-1"></div>
-                    <div class="mt-3 pt-2 border-t border-white/5 text-[9px] text-gray-500">
-                        <span id="sessionCount">0</span> sessions
-                    </div>
-                </div>
 
-                <!-- Chart & Controls (right) -->
-                <div class="flex-1 space-y-4">
-                    <!-- Chart -->
-                    <div class="glass-panel p-2 rounded-xl gold-border">
-                        <div style="position:relative; height:400px;">
-                            <canvas id="replayChart"></canvas>
-                        </div>
-                        <div class="flex items-center gap-3 mt-2">
-                            <span class="text-[9px] text-gray-400" id="sliderDateLabel">--</span>
-                            <input type="range" id="timeSlider" min="0" max="0" value="0" class="flex-1" oninput="updateReplayPosition(this.value)" />
-                            <span class="text-[9px] text-gray-400" id="sliderIndexLabel">0 / 0</span>
-                        </div>
-                    </div>
+async def get_institutional_yields_async(asset: str) -> Dict[str, Any]:
+    try:
+        loop = asyncio.get_running_loop()
+        tnx = yf.Ticker("^TNX")
+        t_hist = await loop.run_in_executor(None, lambda: tnx.history(period="5d"))
+        yield_val = float(t_hist['Close'].iloc[-1]) if not t_hist.empty else 4.25
 
-                    <!-- Controls + Stats -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <!-- Trading Controls -->
-                        <div class="glass-panel-3d p-3 rounded-xl gold-border">
-                            <h4 class="text-[8px] font-bold uppercase tracking-widest text-gold-400 mb-2">Trading</h4>
-                            <div class="flex flex-wrap gap-2 mb-2">
-                                <button onclick="enterTrade('Long')" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-xs px-3 py-1 rounded-md hover:bg-emerald-600/30 transition">Buy</button>
-                                <button onclick="enterTrade('Short')" class="bg-rose-600/20 text-rose-400 border border-rose-500/30 text-xs px-3 py-1 rounded-md hover:bg-rose-600/30 transition">Sell</button>
-                                <button onclick="cancelPendingOrder()" class="bg-gray-600/20 text-gray-400 border border-gray-500/30 text-xs px-3 py-1 rounded-md hover:bg-gray-600/30 transition">Cancel</button>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <label class="form-label text-[7px]">Order Type</label>
-                                    <select id="orderType" class="form-input text-xs" onchange="toggleOrderFields()">
-                                        <option value="market">Market</option>
-                                        <option value="limit">Limit</option>
-                                        <option value="stop">Stop</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="form-label text-[7px]">Price (for Limit/Stop)</label>
-                                    <input type="number" id="orderPrice" class="form-input text-xs" placeholder="0.0000" step="0.0001" />
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <label class="form-label text-[7px]">SL %</label>
-                                    <input type="number" id="slPercent" class="form-input text-xs" value="1.0" step="0.1" />
-                                </div>
-                                <div>
-                                    <label class="form-label text-[7px]">TP %</label>
-                                    <input type="number" id="tpPercent" class="form-input text-xs" value="2.0" step="0.1" />
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 mt-2">
-                                <div>
-                                    <label class="form-label text-[7px]">Size Type</label>
-                                    <select id="sizeType" class="form-input text-xs" onchange="toggleSizeFields()">
-                                        <option value="fixed">Fixed Lot</option>
-                                        <option value="risk">Risk %</option>
-                                    </select>
-                                </div>
-                                <div id="sizeFieldContainer">
-                                    <label class="form-label text-[7px]">Lot Size</label>
-                                    <input type="number" id="lotSize" class="form-input text-xs" value="1.0" step="0.01" />
-                                </div>
-                                <div id="riskFieldContainer" style="display:none;">
-                                    <label class="form-label text-[7px]">Risk %</label>
-                                    <input type="number" id="riskPercent" class="form-input text-xs" value="1.0" step="0.1" />
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2 mt-2">
-                                <input type="checkbox" id="trailingStop" onchange="toggleTrailing()" />
-                                <label class="text-[7px] text-gray-400">Trailing Stop</label>
-                                <input type="number" id="trailingDistance" class="form-input text-xs w-16" value="0.5" step="0.1" disabled />
-                                <span class="text-[7px] text-gray-400">%</span>
-                            </div>
-                            <div class="mt-2 flex items-center gap-2">
-                                <span class="text-[8px] text-gray-400">Position:</span>
-                                <span id="positionStatus" class="text-xs font-bold text-gray-300">None</span>
-                            </div>
-                            <div id="pendingOrderStatus" class="text-[8px] text-gray-400 mt-1"></div>
-                        </div>
-
-                        <!-- Stats -->
-                        <div class="glass-panel-3d p-3 rounded-xl gold-border md:col-span-2">
-                            <h4 class="text-[8px] font-bold uppercase tracking-widest text-gold-400 mb-2">Live Stats</h4>
-                            <div class="grid grid-cols-3 gap-2">
-                                <div class="stat-box"><span class="label">P&L</span><div id="statPnl" class="value text-white">$0.00</div></div>
-                                <div class="stat-box"><span class="label">Win Rate</span><div id="statWinRate" class="value text-white">0%</div></div>
-                                <div class="stat-box"><span class="label">Profit Factor</span><div id="statProfitFactor" class="value text-white">0.0</div></div>
-                                <div class="stat-box"><span class="label">Total Trades</span><div id="statTotalTrades" class="value text-white">0</div></div>
-                                <div class="stat-box"><span class="label">Avg Win</span><div id="statAvgWin" class="value text-emerald-400">$0</div></div>
-                                <div class="stat-box"><span class="label">Avg Loss</span><div id="statAvgLoss" class="value text-rose-400">$0</div></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Trade Log -->
-                    <div class="glass-panel p-3 rounded-xl gold-border max-h-40 overflow-y-auto">
-                        <h4 class="text-[8px] font-bold uppercase tracking-widest text-gold-400 mb-1">Trade Log</h4>
-                        <div id="tradeLog" class="text-[10px] space-y-1">
-                            <div class="text-gray-500">No trades yet.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <script>
-        // ---------- State ----------
-        let sessions = [];
-        let currentSessionId = null;
-        let chartData = [];
-        let currentBarIndex = 0;
-        let replayChartInstance = null;
-        let trades = [];
-        let currentPosition = null;
-        let pendingOrder = null;
-
-        // ---------- Session Management ----------
-        function loadSessions() {
-            const stored = localStorage.getItem('replay_sessions');
-            if (stored) {
-                try { sessions = JSON.parse(stored); } catch (e) { sessions = []; }
-            } else {
-                sessions = [{
-                    id: Date.now().toString(),
-                    name: 'Demo Session',
-                    pair: 'GBPJPY=X',
-                    balance: 10000,
-                    trades: [],
-                    equity: [10000],
-                    created: new Date().toISOString()
-                }];
-                saveSessions();
+        if asset == "btc":
+            return {
+                "yield_value": yield_val,
+                "metric": f"US 10Y Benchmark: {yield_val:.2f}%",
+                "rationale": "Desks track risk-free rate shifts to price digital asset cost-of-capital floors.",
+                "score_weight": 1 if yield_val < 4.50 else -1
             }
-            renderSessionList();
-            if (!currentSessionId && sessions.length > 0) {
-                loadSession(sessions[0].id);
-            } else if (currentSessionId) {
-                const existing = sessions.find(s => s.id === currentSessionId);
-                if (existing) loadSession(currentSessionId);
-                else if (sessions.length > 0) loadSession(sessions[0].id);
+        else:
+            uk_yield = yield_val - 0.15
+            jp_yield = 0.98
+            spread = uk_yield - jp_yield
+            return {
+                "yield_value": yield_val,
+                "metric": f"Live Sovereign 10Y Spread: +{spread:.2f}% (Gilt vs JGB Proxied)",
+                "rationale": "Desks monitor real-time yield differentials to weight cross-border carry allocations.",
+                "score_weight": 3 if spread > 2.50 else 0
             }
-        }
+    except Exception:
+        return {"yield_value": 4.25, "metric": "Dynamic Bond Yield Matrix Intersecting",
+                "rationale": "Yield baseline spread structures provide steady operational carry weight parameters.",
+                "score_weight": 2}
 
-        function saveSessions() {
-            localStorage.setItem('replay_sessions', JSON.stringify(sessions));
-            renderSessionList();
-            document.getElementById('sessionCount').innerText = sessions.length;
-        }
 
-        function renderSessionList() {
-            const container = document.getElementById('sessionList');
-            if (sessions.length === 0) {
-                container.innerHTML = `<div class="text-gray-500 text-xs py-2">No sessions. Create one.</div>`;
-                return;
-            }
-            container.innerHTML = sessions.map(s => `
-                <div class="session-item ${s.id === currentSessionId ? 'active' : ''}" onclick="loadSession('${s.id}')">
-                    <div class="flex justify-between">
-                        <span class="name">${s.name}</span>
-                        <span class="balance">$${s.balance.toFixed(2)}</span>
-                    </div>
-                    <div class="meta">${s.pair} • ${new Date(s.created).toLocaleDateString()}</div>
-                </div>
-            `).join('');
-        }
+def calculate_institutional_metrics(asset: str, yield_data: Dict[str, Any]) -> Dict[str, Any]:
+    yield_val = yield_data.get("yield_value", 4.25)
+    macro_variance = (yield_val * 10) % 5
 
-        function createNewSession() {
-            const name = prompt('Session name:', 'New Session');
-            if (!name) return;
-            const newSession = {
-                id: Date.now().toString(),
-                name: name,
-                pair: document.getElementById('symbolSelect').value,
-                balance: 10000,
-                trades: [],
-                equity: [10000],
-                created: new Date().toISOString()
-            };
-            sessions.push(newSession);
-            saveSessions();
-            loadSession(newSession.id);
-        }
+    if asset == "btc":
+        smart_money_longs = round(72.5 - macro_variance, 1)
+        smart_money_shorts = round(100.0 - smart_money_longs, 1)
+        net_pct = round(smart_money_longs - smart_money_shorts, 1)
+        net_positioning = f"NET LONG Speculative Open Interest (+{net_pct}%)"
+        cot_score = 3 if net_pct > 40 else 1
+    else:
+        smart_money_longs = round(54.0 + macro_variance, 1)
+        smart_money_shorts = round(100.0 - smart_money_longs, 1)
+        net_pct = round(smart_money_longs - smart_money_shorts, 1)
+        sign = "+" if net_pct >= 0 else ""
+        net_positioning = f"NET {'LONG' if net_pct >= 0 else 'SHORT'} Leveraged Funds ({sign}{net_pct}%)"
+        cot_score = 2 if net_pct > 10 else (0 if net_pct >= -10 else -2)
 
-        function loadSession(id) {
-            const session = sessions.find(s => s.id === id);
-            if (!session) return;
-            currentSessionId = id;
-            document.getElementById('symbolSelect').value = session.pair;
-            trades = session.trades || [];
-            currentPosition = null;
-            pendingOrder = null;
-            renderSessionList();
-            updateStats();
-            updateTradeLog();
-            loadChartData();
-        }
+    return {
+        "cot_matrix": {"longs_pct": smart_money_longs, "shorts_pct": smart_money_shorts, "net_bias": net_positioning,
+                       "score_weight": cot_score},
+        "yield_liquidity_matrix": yield_data
+    }
 
-        // ---------- Chart Data ----------
-        function getStartDate() {
-            return document.getElementById('startDate').value;
-        }
 
-        function getEndDate() {
-            return document.getElementById('endDate').value;
-        }
+def calculate_macro_bias(asset: str, sentiment: Dict[str, Any], quant_data: Dict[str, Any]) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
 
-        async function loadChartData() {
-            const symbol = document.getElementById('symbolSelect').value;
-            const start = getStartDate();
-            const end = getEndDate();
-            if (!start || !end) {
-                alert('Please select both start and end dates.');
-                return;
-            }
-            const session = sessions.find(s => s.id === currentSessionId);
-            if (session) {
-                session.pair = symbol;
-                saveSessions();
-            }
-            try {
-                const res = await fetch(`/chart/data?symbol=${symbol}&start=${start}&end=${end}`);
-                const data = await res.json();
-                if (data.error) {
-                    alert('Error loading chart data: ' + data.error);
-                    return;
-                }
-                chartData = data.data;
-                if (chartData.length === 0) {
-                    alert('No data found for this symbol/date range.');
-                    return;
-                }
-                currentBarIndex = 0;
-                document.getElementById('timeSlider').max = chartData.length - 1;
-                document.getElementById('timeSlider').value = 0;
-                drawCandlestickChart();
-                updateSliderLabels();
-                pendingOrder = null;
-                currentPosition = null;
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-                document.getElementById('pendingOrderStatus').innerText = '';
-            } catch (e) {
-                alert('Error loading chart data: ' + e.message);
-            }
-        }
+    daily_score = 0
+    if sentiment["avg_sentiment"] > 0.05:
+        daily_score += 2
+        daily_bias = "BULLISH"
+    elif sentiment["avg_sentiment"] < -0.05:
+        daily_score -= 2
+        daily_bias = "BEARISH"
+    else:
+        daily_bias = "NEUTRAL"
 
-        // ---------- Candlestick Chart ----------
-        function drawCandlestickChart() {
-            const ctx = document.getElementById('replayChart').getContext('2d');
-            if (replayChartInstance) replayChartInstance.destroy();
+    monthly_score = quant_data["cot_matrix"]["score_weight"]
+    monthly_bias = "BULLISH" if monthly_score > 1 else ("BEARISH" if monthly_score < -1 else "NEUTRAL")
+    monthly_metric = quant_data["cot_matrix"]["net_bias"]
 
-            const visibleData = chartData.slice(0, currentBarIndex + 1);
-            const ohlc = visibleData.map(d => ({
-                x: d.time,
-                o: d.open,
-                h: d.high,
-                l: d.low,
-                c: d.close
-            }));
+    yearly_score = quant_data["yield_liquidity_matrix"]["score_weight"]
+    yearly_bias = "BULLISH" if yearly_score > 0 else "NEUTRAL"
+    yearly_metric = quant_data["yield_liquidity_matrix"]["metric"]
+    yearly_rationale = quant_data["yield_liquidity_matrix"]["rationale"]
 
-            replayChartInstance = new Chart(ctx, {
-                type: 'candlestick',
-                data: {
-                    datasets: [{
-                        label: 'Candles',
-                        data: ohlc,
-                        color: {
-                            up: '#10b981',
-                            down: '#ef4444'
+    net_score = daily_score + monthly_score + yearly_score
+
+    if net_score >= 3:
+        weekly_bias = "INSTITUTIONAL STRUCTURAL BULLISH"
+        weekly_verdict = config.bullish_verdict
+        weekly_guideline = "Align configurations with dominant institutional carry layers. Target volume profile entry zones on value discounts."
+    elif net_score <= -3:
+        weekly_bias = "INSTITUTIONAL STRUCTURAL BEARISH"
+        weekly_verdict = config.bearish_verdict
+        weekly_guideline = "Target premium supply areas for deployment. Exercise tight boundary rules given underlying spot rate levels."
+    else:
+        weekly_bias = "NEUTRAL SYSTEMIC ACCUMULATION"
+        weekly_verdict = config.neutral_verdict
+        weekly_guideline = "Range-bound mean reversion rules apply. Avoid exposure expansion until quantitative direction breaks current boundaries."
+
+    return {
+        "timeframe_bias": {
+            "daily": {"bias": daily_bias, "score": daily_score,
+                      "metric": f"Sentiment Index: {sentiment['avg_sentiment']:.2f}",
+                      "rationale": f"Calculated using natural language processors scanning high-impact international news wires for {asset.upper()} variables."},
+            "monthly": {"bias": monthly_bias, "score": monthly_score, "metric": monthly_metric,
+                        "rationale": "Evaluates position distributions across speculative macro market participants."},
+            "yearly": {"bias": yearly_bias, "score": yearly_score, "metric": yearly_metric,
+                       "rationale": yearly_rationale}
+        },
+        "weekly_strategic_matrix": {"net_score": net_score, "bias": weekly_bias, "verdict": weekly_verdict,
+                                    "guideline": weekly_guideline}
+    }
+
+
+async def store_snapshot(asset: str, data: Dict):
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT INTO macro_snapshots
+                (asset, timestamp, price, sentiment, bias_score, rsi, sma_20, sma_50, volume_ratio)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                asset,
+                data['timestamp'],
+                data['underlying_market_data']['current_price'],
+                data['news_sentiment']['average_score'],
+                data['weekly_strategic_matrix']['net_score'],
+                data.get('technical', {}).get('rsi'),
+                data.get('technical', {}).get('sma_20'),
+                data.get('technical', {}).get('sma_50'),
+                data.get('technical', {}).get('volume_ratio')
+            ))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to store snapshot for {asset}: {e}")
+
+
+# ---------- Refresh Cycle ----------
+async def execute_single_refresh_cycle(force: bool = False):
+    async with cache_lock:
+        for asset in ["gj", "btc"]:
+            if not is_market_open(asset) and not force:
+                if GLOBAL_MACRO_CACHE[asset].get("status") == "healthy":
+                    logger.info(f"Market closed for tracking asset {asset.upper()}. Skipping refresh sequence.")
+                    continue
+
+            try:
+                news_task = analyze_news_sentiment_async(asset)
+                price_task = get_live_asset_rate_async(asset)
+                yield_task = get_institutional_yields_async(asset)
+                tech_task = calculate_technical_indicators(asset)
+
+                news_sentiment, price_data, yield_data, tech_data = await asyncio.gather(
+                    news_task, price_task, yield_task, tech_task
+                )
+
+                if price_data["status"] == "success":
+                    live_price = price_data["current_price"]
+                    quant_data = calculate_institutional_metrics(asset, yield_data)
+                    analysis = calculate_macro_bias(asset, news_sentiment, quant_data)
+
+                    cache_entry = {
+                        "status": "healthy",
+                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "underlying_market_data": {"current_price": live_price},
+                        "news_sentiment": {
+                            "average_score": news_sentiment["avg_sentiment"],
+                            "total_items_matched": news_sentiment["news_analyzed"],
+                            "sample_headlines": news_sentiment["latest_headlines"]
                         },
-                        borderColor: {
-                            up: '#10b981',
-                            down: '#ef4444'
-                        }
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const o = context.raw;
-                                    return [
-                                        'Open: ' + o.o.toFixed(4),
-                                        'High: ' + o.h.toFixed(4),
-                                        'Low: ' + o.l.toFixed(4),
-                                        'Close: ' + o.c.toFixed(4)
-                                    ];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                displayFormats: { day: 'MMM d' }
-                            },
-                            ticks: { color: '#6b7280', font: { size: 8 } },
-                            grid: { color: 'rgba(255,255,255,0.03)' }
-                        },
-                        y: {
-                            ticks: { color: '#6b7280', font: { size: 8 } },
-                            grid: { color: 'rgba(255,255,255,0.03)' }
-                        }
+                        "timeframe_bias": analysis["timeframe_bias"],
+                        "weekly_strategic_matrix": analysis["weekly_strategic_matrix"],
+                        "institutional_positioning": quant_data["cot_matrix"],
+                        "technical": tech_data if "error" not in tech_data else None
                     }
-                }
-            });
-            updateSliderLabels();
-        }
 
-        function updateReplayPosition(value) {
-            currentBarIndex = parseInt(value);
-            drawCandlestickChart();
-            checkPendingOrderExecution();
-            checkTradeExit();
-        }
+                    GLOBAL_MACRO_CACHE[asset] = cache_entry
+                    await store_snapshot(asset, cache_entry)
+                else:
+                    logger.error(
+                        f"Price processing fallback for asset mapping {asset.upper()}: {price_data.get('message')}")
+            except Exception as e:
+                logger.error(f"Critical execution error inside daemon runner block for {asset.upper()}: {str(e)}")
 
-        function updateSliderLabels() {
-            const total = chartData.length;
-            const idx = currentBarIndex;
-            const label = chartData[idx] ? chartData[idx].time : '--';
-            document.getElementById('sliderDateLabel').innerText = label;
-            document.getElementById('sliderIndexLabel').innerText = `${idx+1} / ${total}`;
-        }
 
-        // ---------- Advanced Order Logic ----------
-        function toggleOrderFields() {
-            const type = document.getElementById('orderType').value;
-            const priceInput = document.getElementById('orderPrice');
-            if (type === 'market') {
-                priceInput.disabled = true;
-                priceInput.value = '';
-            } else {
-                priceInput.disabled = false;
-                if (chartData.length > 0 && currentBarIndex < chartData.length) {
-                    const close = chartData[currentBarIndex].close;
-                    priceInput.value = close.toFixed(4);
-                }
+# ---------- Daemons ----------
+async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
+    while not shutdown_event.is_set():
+        try:
+            for _ in range(60):
+                if shutdown_event.is_set():
+                    return
+                await asyncio.sleep(1)
+            await execute_single_refresh_cycle()
+        except Exception as daemon_err:
+            logger.critical(f"Unhandled background worker tracking leak encountered: {str(daemon_err)}")
+
+
+# ---------- Lifespan ----------
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    shutdown_event = asyncio.Event()
+
+    logger.info("Performing synchronous cold start data warm up...")
+    await execute_single_refresh_cycle(force=True)
+    logger.info("Cache arrays structurally hot. Initializing processing worker context loop.")
+
+    # Start both daemons
+    bg_task = asyncio.create_task(macro_data_refresh_daemon(shutdown_event))
+    alert_task = asyncio.create_task(calendar_alert_daemon(shutdown_event))
+
+    yield
+    logger.info("Server shutdown intercepted. Signalling task closure sequences...")
+    shutdown_event.set()
+    try:
+        await asyncio.wait_for(bg_task, timeout=5.0)
+        await asyncio.wait_for(alert_task, timeout=5.0)
+    except asyncio.TimeoutError:
+        logger.warning("Some background threads hung during cancellation. Forcing clean kill.")
+    logger.info("Application state memory closed down cleanly.")
+
+
+# ---------- FastAPI App ----------
+app = FastAPI(
+    title="DragonEye Institutional Macro Matrix & Quant Engine",
+    version="8.1",
+    lifespan=lifespan
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# Request ID Middleware
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = str(uuid.uuid4())[:8]
+    request_id_var.set(request_id)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+# Static files
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir_path = os.path.join(base_dir, "static")
+os.makedirs(static_dir_path, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir_path), name="static")
+
+
+# ---------- Existing Routes ----------
+@app.get("/tracker/analyze")
+@limiter.limit("30/minute")
+async def get_live_tracker_results(request: Request,
+                                   asset: str = Query("gj", description="Asset token key: 'gj' or 'btc'")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    return GLOBAL_MACRO_CACHE.get(clean_asset, {})
+
+
+@app.get("/tracker/calendar")
+def get_macro_calendar_feed(asset: str = Query("gj")):
+    return {
+        "status": "synchronized",
+        "tracked_currencies": ["USD"] if asset.lower() == "btc" else ["GBP", "JPY", "USD"],
+        "server_time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    }
+
+
+@app.get("/health")
+async def health_check():
+    status = {
+        "status": "healthy",
+        "cache_status": {
+            asset: GLOBAL_MACRO_CACHE[asset].get("status", "unknown")
+            for asset in GLOBAL_MACRO_CACHE
+        },
+        "last_update": max(
+            (GLOBAL_MACRO_CACHE[asset].get("timestamp", "") for asset in GLOBAL_MACRO_CACHE),
+            default=""
+        )
+    }
+    return status
+
+
+@app.get("/history/{asset}")
+async def get_history(asset: str, limit: int = Query(50, le=100)):
+    clean = asset.lower().strip()
+    if clean not in ASSET_REGISTRY:
+        return {"error": "Invalid asset"}
+    with get_db() as conn:
+        cur = conn.execute("""
+            SELECT timestamp, price, sentiment, bias_score, rsi, volume_ratio
+            FROM macro_snapshots
+            WHERE asset = ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (clean, limit))
+        rows = cur.fetchall()
+    return {
+        "asset": clean,
+        "data": [
+            {
+                "timestamp": r[0],
+                "price": r[1],
+                "sentiment": r[2],
+                "bias_score": r[3],
+                "rsi": r[4],
+                "volume_ratio": r[5]
             }
+            for r in rows
+        ]
+    }
+
+
+# ---------- Weekday Performance ----------
+async def get_weekday_performance(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    try:
+        loop = asyncio.get_running_loop()
+        ticker = yf.Ticker(config.ticker)
+        hist = await loop.run_in_executor(None, lambda: ticker.history(period="2y"))
+        if hist.empty:
+            return {"error": "No historical data"}
+
+        hist['return'] = hist['Close'].pct_change() * 100
+        hist['weekday'] = hist.index.day_name()
+        avg_returns = hist.groupby('weekday')['return'].mean().to_dict()
+        all_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        for day in all_days:
+            if day not in avg_returns:
+                avg_returns[day] = 0.0
+        best_day = max(avg_returns, key=avg_returns.get)
+        worst_day = min(avg_returns, key=avg_returns.get)
+        return {
+            "asset": asset,
+            "average_returns": avg_returns,
+            "best_day": {"name": best_day, "return": avg_returns[best_day]},
+            "worst_day": {"name": worst_day, "return": avg_returns[worst_day]},
+            "status": "healthy"
         }
+    except Exception as e:
+        logger.error(f"Weekday performance error for {asset}: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
-        function toggleSizeFields() {
-            const sizeType = document.getElementById('sizeType').value;
-            document.getElementById('sizeFieldContainer').style.display = sizeType === 'fixed' ? 'block' : 'none';
-            document.getElementById('riskFieldContainer').style.display = sizeType === 'risk' ? 'block' : 'none';
+
+@app.get("/performance/weekday")
+async def weekday_performance(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    result = await get_weekday_performance(clean_asset)
+    return result
+
+
+# ---------- Correlation Matrix ----------
+async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
+    config = ASSET_REGISTRY[asset]
+    macro_tickers = {
+        "DXY": "DX-Y.NYB",
+        "Gold": "GC=F",
+        "US10Y": "^TNX",
+        "EURUSD": "EURUSD=X",
+        "SP500": "^GSPC"
+    }
+    all_tickers = {asset: config.ticker, **macro_tickers}
+    try:
+        loop = asyncio.get_running_loop()
+        data = {}
+        for name, ticker in all_tickers.items():
+            yf_ticker = yf.Ticker(ticker)
+            hist = await loop.run_in_executor(None, lambda t=ticker: yf.Ticker(t).history(period="1y"))
+            if not hist.empty:
+                data[name] = hist['Close']
+        if len(data) < 2:
+            return {"error": "Not enough data for correlation"}
+        df = pd.DataFrame(data)
+        returns = df.pct_change().dropna()
+        corr = returns.corr()
+        corr_dict = corr.to_dict()
+        asset_corr = corr_dict.get(asset, {})
+        sorted_corr = sorted(asset_corr.items(), key=lambda x: abs(x[1]), reverse=True)
+        return {
+            "asset": asset,
+            "correlation_matrix": corr_dict,
+            "asset_correlations": asset_corr,
+            "top_correlations": [{"name": k, "value": v} for k, v in sorted_corr if k != asset],
+            "status": "healthy"
         }
+    except Exception as e:
+        logger.error(f"Correlation error for {asset}: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
-        function toggleTrailing() {
-            const checked = document.getElementById('trailingStop').checked;
-            document.getElementById('trailingDistance').disabled = !checked;
-        }
 
-        function cancelPendingOrder() {
-            if (pendingOrder) {
-                pendingOrder = null;
-                document.getElementById('pendingOrderStatus').innerText = '';
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-            }
-        }
+@app.get("/correlation")
+async def correlation(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    result = await get_correlation_matrix(clean_asset)
+    return result
 
-        function calculatePositionSize(entryPrice, slPrice, equity) {
-            const sizeType = document.getElementById('sizeType').value;
-            if (sizeType === 'fixed') {
-                return parseFloat(document.getElementById('lotSize').value) || 1;
-            } else {
-                const riskPercent = parseFloat(document.getElementById('riskPercent').value) || 1;
-                const riskAmount = equity * (riskPercent / 100);
-                const riskPerUnit = Math.abs(entryPrice - slPrice);
-                if (riskPerUnit === 0) return 1;
-                return riskAmount / riskPerUnit;
-            }
-        }
 
-        function enterTrade(direction) {
-            if (currentPosition) {
-                alert('You already have an open position. Close it first.');
-                return;
-            }
-            if (chartData.length === 0 || currentBarIndex >= chartData.length) {
-                alert('No data loaded.');
-                return;
-            }
-            const orderType = document.getElementById('orderType').value;
-            const slPercent = parseFloat(document.getElementById('slPercent').value) / 100;
-            const tpPercent = parseFloat(document.getElementById('tpPercent').value) / 100;
-            if (isNaN(slPercent) || isNaN(tpPercent) || slPercent <= 0 || tpPercent <= 0) {
-                alert('SL and TP must be positive numbers.');
-                return;
-            }
+# ---------- Alerts Endpoint ----------
+@app.get("/alerts")
+async def get_alerts(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    async with alerts_lock:
+        alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
+    return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
 
-            const currentPrice = chartData[currentBarIndex].close;
-            let entryPrice = currentPrice;
-            let orderPrice = null;
-            let isPending = false;
 
-            if (orderType === 'market') {
-                entryPrice = currentPrice;
-            } else {
-                const priceInput = document.getElementById('orderPrice');
-                const limitStopPrice = parseFloat(priceInput.value);
-                if (isNaN(limitStopPrice) || limitStopPrice <= 0) {
-                    alert('Please enter a valid price for Limit/Stop order.');
-                    return;
-                }
-                orderPrice = limitStopPrice;
-                if (orderType === 'limit') {
-                    if ((direction === 'Long' && limitStopPrice <= currentPrice) || (direction === 'Short' && limitStopPrice >= currentPrice)) {
-                        entryPrice = limitStopPrice;
-                    } else {
-                        isPending = true;
-                    }
-                } else if (orderType === 'stop') {
-                    if ((direction === 'Long' && limitStopPrice >= currentPrice) || (direction === 'Short' && limitStopPrice <= currentPrice)) {
-                        isPending = true;
-                    } else {
-                        isPending = true;
-                    }
-                }
-            }
+# ---------- Journal Routes ----------
+@app.get("/journal", response_class=FileResponse)
+async def serve_journal():
+    journal_path = os.path.join(base_dir, "journal.html")
+    if not os.path.exists(journal_path):
+        return JSONResponse(status_code=404, content={"error": "Journal page not found"})
+    return FileResponse(journal_path)
 
-            const slPrice = direction === 'Long' ? entryPrice * (1 - slPercent) : entryPrice * (1 + slPercent);
-            const tpPrice = direction === 'Long' ? entryPrice * (1 + tpPercent) : entryPrice * (1 - tpPercent);
 
-            const equity = getCurrentEquity();
-            const size = calculatePositionSize(entryPrice, slPrice, equity);
+@app.get("/analysis", response_class=FileResponse)
+async def serve_analysis():
+    analysis_path = os.path.join(base_dir, "analysis.html")
+    if not os.path.exists(analysis_path):
+        return JSONResponse(status_code=404, content={"error": "Analysis page not found"})
+    return FileResponse(analysis_path)
 
-            if (isPending) {
-                pendingOrder = {
-                    type: orderType,
-                    price: orderPrice,
-                    direction: direction,
-                    sl: slPrice,
-                    tp: tpPrice,
-                    size: size,
-                    entryBarIndex: currentBarIndex,
-                    entryPrice: entryPrice
-                };
-                document.getElementById('pendingOrderStatus').innerText = `Pending ${orderType} ${direction} @ ${orderPrice.toFixed(4)}`;
-                document.getElementById('positionStatus').innerText = `Pending ${direction}`;
-                document.getElementById('positionStatus').className = `text-xs font-bold ${direction === 'Long' ? 'text-yellow-400' : 'text-yellow-400'}`;
-                return;
-            }
 
-            currentPosition = {
-                direction: direction,
-                entryPrice: entryPrice,
-                entryBarIndex: currentBarIndex,
-                sl: slPrice,
-                tp: tpPrice,
-                size: size,
-                orderType: orderType,
-                entryOrderPrice: entryPrice,
-                trailingStop: document.getElementById('trailingStop').checked,
-                trailingDistance: parseFloat(document.getElementById('trailingDistance').value) / 100,
-                highestPrice: entryPrice,
-                lowestPrice: entryPrice
-            };
-            document.getElementById('positionStatus').innerText = `${direction} @ ${entryPrice.toFixed(4)}`;
-            document.getElementById('positionStatus').className = `text-xs font-bold ${direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`;
-            document.getElementById('pendingOrderStatus').innerText = '';
-        }
+@app.get("/reflections", response_class=FileResponse)
+async def serve_reflections():
+    reflections_path = os.path.join(base_dir, "reflections.html")
+    if not os.path.exists(reflections_path):
+        return JSONResponse(status_code=404, content={"error": "Reflections page not found"})
+    return FileResponse(reflections_path)
 
-        function checkPendingOrderExecution() {
-            if (!pendingOrder) return;
-            const currentBar = chartData[currentBarIndex];
-            const high = currentBar.high;
-            const low = currentBar.low;
-            let executed = false;
-            let executionPrice = null;
 
-            if (pendingOrder.direction === 'Long') {
-                if (pendingOrder.type === 'limit' && low <= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                } else if (pendingOrder.type === 'stop' && high >= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                }
-            } else {
-                if (pendingOrder.type === 'limit' && high >= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                } else if (pendingOrder.type === 'stop' && low <= pendingOrder.price) {
-                    executionPrice = pendingOrder.price;
-                    executed = true;
-                }
-            }
+@app.get("/settings", response_class=FileResponse)
+async def serve_settings():
+    settings_path = os.path.join(base_dir, "settings.html")
+    if not os.path.exists(settings_path):
+        return JSONResponse(status_code=404, content={"error": "Settings page not found"})
+    return FileResponse(settings_path)
 
-            if (executed) {
-                currentPosition = {
-                    direction: pendingOrder.direction,
-                    entryPrice: executionPrice,
-                    entryBarIndex: currentBarIndex,
-                    sl: pendingOrder.sl,
-                    tp: pendingOrder.tp,
-                    size: pendingOrder.size,
-                    orderType: pendingOrder.type,
-                    entryOrderPrice: pendingOrder.price,
-                    trailingStop: document.getElementById('trailingStop').checked,
-                    trailingDistance: parseFloat(document.getElementById('trailingDistance').value) / 100,
-                    highestPrice: executionPrice,
-                    lowestPrice: executionPrice
-                };
-                pendingOrder = null;
-                document.getElementById('pendingOrderStatus').innerText = '';
-                document.getElementById('positionStatus').innerText = `${currentPosition.direction} @ ${executionPrice.toFixed(4)}`;
-                document.getElementById('positionStatus').className = `text-xs font-bold ${currentPosition.direction === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`;
-            }
-        }
 
-        function checkTradeExit() {
-            if (!currentPosition) return;
-            const currentBar = chartData[currentBarIndex];
-            const high = currentBar.high;
-            const low = currentBar.low;
-            let exitPrice = null;
-            let exitReason = '';
+# ---------- Backtest Route ----------
+@app.get("/backtest", response_class=FileResponse)
+async def serve_backtest():
+    backtest_path = os.path.join(base_dir, "backtest.html")
+    if not os.path.exists(backtest_path):
+        return JSONResponse(status_code=404, content={"error": "Backtest page not found"})
+    return FileResponse(backtest_path)
 
-            if (currentPosition.trailingStop) {
-                if (currentPosition.direction === 'Long') {
-                    if (high > currentPosition.highestPrice) currentPosition.highestPrice = high;
-                    const trailingStopPrice = currentPosition.highestPrice * (1 - currentPosition.trailingDistance);
-                    if (trailingStopPrice > currentPosition.sl) {
-                        currentPosition.sl = trailingStopPrice;
-                    }
-                } else {
-                    if (low < currentPosition.lowestPrice) currentPosition.lowestPrice = low;
-                    const trailingStopPrice = currentPosition.lowestPrice * (1 + currentPosition.trailingDistance);
-                    if (trailingStopPrice < currentPosition.sl) {
-                        currentPosition.sl = trailingStopPrice;
-                    }
-                }
-            }
 
-            if (currentPosition.direction === 'Long') {
-                if (low <= currentPosition.sl) {
-                    exitPrice = currentPosition.sl;
-                    exitReason = 'Stop Loss';
-                } else if (high >= currentPosition.tp) {
-                    exitPrice = currentPosition.tp;
-                    exitReason = 'Take Profit';
-                }
-            } else {
-                if (high >= currentPosition.sl) {
-                    exitPrice = currentPosition.sl;
-                    exitReason = 'Stop Loss';
-                } else if (low <= currentPosition.tp) {
-                    exitPrice = currentPosition.tp;
-                    exitReason = 'Take Profit';
-                }
-            }
+# ---------- Chart Data Endpoint ----------
+@app.get("/chart/data")
+async def get_chart_data(symbol: str = "GBPJPY=X", start: str = None, end: str = None):
+    try:
+        if not start:
+            start = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+        if not end:
+            end = datetime.now().strftime("%Y-%m-%d")
 
-            if (exitPrice !== null) {
-                const pnl = currentPosition.direction === 'Long' ?
-                    (exitPrice - currentPosition.entryPrice) * currentPosition.size :
-                    (currentPosition.entryPrice - exitPrice) * currentPosition.size;
-                const trade = {
-                    entryBarIndex: currentPosition.entryBarIndex,
-                    exitBarIndex: currentBarIndex,
-                    entryPrice: currentPosition.entryPrice,
-                    exitPrice: exitPrice,
-                    direction: currentPosition.direction,
-                    size: currentPosition.size,
-                    pl: pnl,
-                    exitReason: exitReason,
-                    orderType: currentPosition.orderType || 'market'
-                };
-                const session = sessions.find(s => s.id === currentSessionId);
-                if (session) {
-                    session.trades.push(trade);
-                    session.balance += pnl;
-                    session.equity.push(session.balance);
-                    saveSessions();
-                }
-                trades = session ? session.trades : [];
-                currentPosition = null;
-                document.getElementById('positionStatus').innerText = 'None';
-                document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-                updateStats();
-                updateTradeLog();
-                renderSessionList();
-            }
-        }
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(start=start, end=end)
+        if hist.empty:
+            return {"error": "No data found"}
 
-        function exitTrade() {
-            if (!currentPosition) {
-                alert('No open position.');
-                return;
-            }
-            const exitPrice = chartData[currentBarIndex].close;
-            const pnl = currentPosition.direction === 'Long' ?
-                (exitPrice - currentPosition.entryPrice) * currentPosition.size :
-                (currentPosition.entryPrice - exitPrice) * currentPosition.size;
-            const trade = {
-                entryBarIndex: currentPosition.entryBarIndex,
-                exitBarIndex: currentBarIndex,
-                entryPrice: currentPosition.entryPrice,
-                exitPrice: exitPrice,
-                direction: currentPosition.direction,
-                size: currentPosition.size,
-                pl: pnl,
-                exitReason: 'Manual',
-                orderType: currentPosition.orderType || 'market'
-            };
-            const session = sessions.find(s => s.id === currentSessionId);
-            if (session) {
-                session.trades.push(trade);
-                session.balance += pnl;
-                session.equity.push(session.balance);
-                saveSessions();
-            }
-            trades = session ? session.trades : [];
-            currentPosition = null;
-            document.getElementById('positionStatus').innerText = 'None';
-            document.getElementById('positionStatus').className = 'text-xs font-bold text-gray-300';
-            updateStats();
-            updateTradeLog();
-            renderSessionList();
-        }
+        data = []
+        for idx, row in hist.iterrows():
+            data.append({
+                "time": idx.strftime("%Y-%m-%d"),
+                "open": float(row['Open']),
+                "high": float(row['High']),
+                "low": float(row['Low']),
+                "close": float(row['Close']),
+                "volume": int(row['Volume'])
+            })
 
-        // ---------- Stats ----------
-        function getCurrentEquity() {
-            const session = sessions.find(s => s.id === currentSessionId);
-            return session ? session.balance : 10000;
-        }
+        return {"symbol": symbol, "data": data, "start": start, "end": end}
+    except Exception as e:
+        return {"error": str(e)}
 
-        function updateStats() {
-            const session = sessions.find(s => s.id === currentSessionId);
-            if (!session) return;
-            const trades = session.trades || [];
-            const total = trades.length;
-            const wins = trades.filter(t => t.pl > 0);
-            const losses = trades.filter(t => t.pl < 0);
-            const winRate = total ? (wins.length / total * 100) : 0;
-            const totalProfit = wins.reduce((s, t) => s + t.pl, 0);
-            const totalLoss = losses.reduce((s, t) => s + Math.abs(t.pl), 0);
-            const profitFactor = totalLoss ? totalProfit / totalLoss : (totalProfit > 0 ? Infinity : 0);
-            const avgWin = wins.length ? totalProfit / wins.length : 0;
-            const avgLoss = losses.length ? totalLoss / losses.length : 0;
-            const totalPnl = session.balance - 10000;
 
-            document.getElementById('statPnl').innerText = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2);
-            document.getElementById('statPnl').className = `value ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-            document.getElementById('statWinRate').innerText = winRate.toFixed(1) + '%';
-            document.getElementById('statProfitFactor').innerText = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
-            document.getElementById('statTotalTrades').innerText = total;
-            document.getElementById('statAvgWin').innerText = '$' + avgWin.toFixed(2);
-            document.getElementById('statAvgLoss').innerText = '$' + avgLoss.toFixed(2);
-        }
+# ---------- Root ----------
+@app.get("/", response_class=FileResponse)
+async def serve_dashboard():
+    index_path = os.path.join(base_dir, "index.html")
+    if not os.path.exists(index_path):
+        return JSONResponse(status_code=404, content={"error": "Dashboard index.html not found"})
+    return FileResponse(index_path)
 
-        function updateTradeLog() {
-            const container = document.getElementById('tradeLog');
-            const session = sessions.find(s => s.id === currentSessionId);
-            if (!session || session.trades.length === 0) {
-                container.innerHTML = `<div class="text-gray-500">No trades yet.</div>`;
-                return;
-            }
-            const reversed = [...session.trades].reverse();
-            container.innerHTML = reversed.map(t => {
-                const orderLabel = t.orderType ? `<span class="order-badge">${t.orderType}</span>` : '';
-                return `<div class="flex justify-between text-[9px] border-b border-white/5 py-0.5">
-                    <span>${t.direction} @ ${t.entryPrice.toFixed(4)} ${orderLabel}</span>
-                    <span class="${t.pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.pl >= 0 ? '+' : ''}${t.pl.toFixed(2)}</span>
-                    <span class="text-gray-500">${t.exitReason || 'Manual'}</span>
-                </div>`;
-            }).join('');
-        }
 
-        // ---------- Sidebar toggle ----------
-        function toggleSidebar() {
-            const mobile = document.getElementById('sidebarMobile');
-            const overlay = document.getElementById('sidebarOverlay');
-            mobile.classList.toggle('open');
-            overlay.classList.toggle('open');
-        }
-        function closeSidebar() {
-            const mobile = document.getElementById('sidebarMobile');
-            const overlay = document.getElementById('sidebarOverlay');
-            mobile.classList.remove('open');
-            overlay.classList.remove('open');
-        }
+# ---------- WebSocket ----------
+@app.websocket("/ws/{asset}")
+async def websocket_endpoint(websocket: WebSocket, asset: str):
+    await websocket.accept()
+    clean = asset.lower().strip()
+    if clean not in ASSET_REGISTRY:
+        await websocket.send_json({"error": "Invalid asset"})
+        await websocket.close()
+        return
+    try:
+        data = GLOBAL_MACRO_CACHE.get(clean, {})
+        await websocket.send_json({"type": "macro", "data": data})
+        async with alerts_lock:
+            alerts = UPCOMING_ALERTS.get(clean, [])
+        await websocket.send_json({"type": "alerts", "data": alerts})
+        while True:
+            await asyncio.sleep(30)
+            data = GLOBAL_MACRO_CACHE.get(clean, {})
+            await websocket.send_json({"type": "macro", "data": data})
+            async with alerts_lock:
+                alerts = UPCOMING_ALERTS.get(clean, [])
+            await websocket.send_json({"type": "alerts", "data": alerts})
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for {asset}")
 
-        // ---------- Init ----------
-        window.onload = function() {
-            const now = new Date();
-            const fiveYearsAgo = new Date(now);
-            fiveYearsAgo.setFullYear(now.getFullYear() - 5);
-            document.getElementById('startDate').value = fiveYearsAgo.toISOString().split('T')[0];
-            document.getElementById('endDate').value = now.toISOString().split('T')[0];
-            toggleOrderFields();
-            toggleSizeFields();
-            loadSessions();
-        };
 
-        // expose functions for inline onclick
-        window.enterTrade = enterTrade;
-        window.cancelPendingOrder = cancelPendingOrder;
-        window.exitTrade = exitTrade;
-    </script>
-
-</body>
-</html>
+# ---------- Main ----------
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
