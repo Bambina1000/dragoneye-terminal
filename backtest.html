@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no" />
     <title>NEKTA DL // Replay Backtester Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js first -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+    <!-- Load the date adapter immediately after Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.min.js"></script>
+    <!-- Then the financial plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -553,15 +556,21 @@
             }
         }
 
-        // ---------- Candlestick Chart (with robust destroy) ----------
+        // ---------- Candlestick Chart with robust destroy ----------
         function drawCandlestickChart() {
-            const ctx = document.getElementById('replayChart').getContext('2d');
-            // Destroy any existing chart instance safely
+            const canvas = document.getElementById('replayChart');
+            const ctx = canvas.getContext('2d');
+
+            // 1. Destroy any existing chart instance
             if (replayChartInstance) {
-                try { replayChartInstance.destroy(); } catch (e) {}
+                replayChartInstance.destroy();
                 replayChartInstance = null;
             }
 
+            // 2. Clear the canvas completely (extra safety)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 3. Prepare data
             const visibleData = chartData.slice(0, currentBarIndex + 1);
             const ohlc = visibleData.map(d => ({
                 x: d.time,
@@ -571,6 +580,7 @@
                 c: d.close
             }));
 
+            // 4. Create new chart
             replayChartInstance = new Chart(ctx, {
                 type: 'candlestick',
                 data: {
@@ -1001,11 +1011,11 @@
 
         // ---------- Init ----------
         window.onload = function() {
-            const now = new Date();
-            const fiveYearsAgo = new Date(now);
-            fiveYearsAgo.setFullYear(now.getFullYear() - 5);
-            document.getElementById('startDate').value = fiveYearsAgo.toISOString().split('T')[0];
-            document.getElementById('endDate').value = now.toISOString().split('T')[0];
+            // Default date range: 2020-01-01 to today
+            const start = new Date('2020-01-01');
+            const end = new Date();
+            document.getElementById('startDate').value = start.toISOString().split('T')[0];
+            document.getElementById('endDate').value = end.toISOString().split('T')[0];
             toggleOrderFields();
             toggleSizeFields();
             loadSessions();
