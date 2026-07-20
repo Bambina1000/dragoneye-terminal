@@ -43,8 +43,11 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s"
 )
+
+# --- FIX: Apply filter to root logger so all loggers (httpx, uvicorn, etc.) also get request_id ---
+logging.getLogger().addFilter(RequestIdFilter())
 logger = logging.getLogger("MacroEngine")
-logger.addFilter(RequestIdFilter())
+# No need to add filter again to MacroEngine – it inherits from root
 
 # ---------- NLTK ----------
 nltk.data.path.append('/tmp/nltk_data')
