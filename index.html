@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>NEKTA DL // Macro Framework Pro</title>
+
+    <!-- ========== PWA Manifest & Theme ========== -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#d4a843" />
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
@@ -138,9 +143,7 @@
         .topbar .right .time { font-weight: 600; color: var(--text-primary); }
         .topbar .right .gold-bg { background: var(--gold); color: #000; font-weight: 700; padding: 0.2rem 0.7rem; border-radius: 0.3rem; border: none; cursor: pointer; font-size: 0.6rem; transition: all 0.2s; box-shadow: 0 0 10px rgba(212,168,67,0.2); }
         .topbar .right .gold-bg:hover { background: #c49a38; transform: scale(1.02); }
-        .topbar .right .cal-btn { background: rgba(255,255,255,0.03); color: var(--text-primary); border: 1px solid var(--border-glass); padding: 0.15rem 0.5rem; border-radius: 0.3rem; cursor: pointer; font-size: 0.6rem; transition: all 0.2s; }
-        .topbar .right .cal-btn:hover { background: rgba(255,255,255,0.06); }
-        .theme-toggle {
+        .topbar .right .theme-toggle {
             background: rgba(255,255,255,0.03);
             border: 1px solid var(--border-glass);
             border-radius: 9999px;
@@ -154,7 +157,7 @@
             color: var(--text-primary);
             transition: all 0.2s;
         }
-        .theme-toggle:hover { background: var(--gold-dim); }
+        .topbar .right .theme-toggle:hover { background: var(--gold-dim); }
         .content {
             flex: 1;
             overflow-y: auto;
@@ -187,11 +190,10 @@
         .gold-hover:hover { border-color: var(--gold); }
         .glow-text { text-shadow: 0 0 30px rgba(212,168,67,0.3); }
         .glow-green { text-shadow: 0 0 15px rgba(16,185,129,0.4); }
-        .calendar-frame iframe { width: 100%; height: 450px; border: none; border-radius: 8px; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* ---- Bias Cards ---- */
+        /* Bias Cards */
         .bias-card {
             background: var(--bg-card);
             border: 1px solid var(--border-glass);
@@ -274,7 +276,7 @@
         }
         .bias-card:hover .bias-glow { opacity: 0.2; }
 
-        /* ---- CFTC Bar ---- */
+        /* CFTC Bar */
         .cftc-bar {
             display: flex;
             height: 6px;
@@ -287,7 +289,7 @@
         .cftc-bar .long { background: linear-gradient(90deg, #34d399, #10b981); }
         .cftc-bar .short { background: linear-gradient(90deg, #f87171, #ef4444); }
 
-        /* ---- Seasonality (simplified) ---- */
+        /* Seasonality */
         .seasonality-badge {
             display: inline-flex;
             align-items: center;
@@ -300,20 +302,7 @@
         .seasonality-badge.best { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.2); }
         .seasonality-badge.worst { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
 
-        /* ---- News ---- */
-        .news-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            padding: 0.3rem 0.4rem;
-            border-radius: 0.4rem;
-            border-left: 2px solid transparent;
-            transition: all 0.2s;
-        }
-        .news-item:hover { background: rgba(255,255,255,0.02); border-left-color: var(--gold); }
-        .news-item .bullet { color: var(--gold); font-size: 0.6rem; margin-top: 0.15rem; }
-
-        /* ---- Responsive ---- */
+        /* Responsive */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; width: 260px !important; }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -368,7 +357,6 @@
                 <span id="liveTime" class="time"></span>
                 <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
                 <button onclick="handleSyncClick()" class="gold-bg">Sync</button>
-                <button onclick="openCalendarModal()" class="cal-btn">📅</button>
             </div>
         </header>
 
@@ -376,7 +364,6 @@
         <main class="content no-scrollbar" id="mainContentArea">
             <!-- Bias Cards Row -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <!-- Daily -->
                 <div class="bias-card">
                     <div class="bias-glow"></div>
                     <div class="bias-header">Daily</div>
@@ -388,7 +375,6 @@
                     <div class="bias-bar"><div class="fill" id="daily_bar" style="width:0%;"></div></div>
                     <div class="bias-reason" id="daily_reason">Waiting for data...</div>
                 </div>
-                <!-- Weekly -->
                 <div class="bias-card">
                     <div class="bias-glow"></div>
                     <div class="bias-header">Weekly</div>
@@ -400,7 +386,6 @@
                     <div class="bias-bar"><div class="fill" id="weekly_bar" style="width:0%;"></div></div>
                     <div class="bias-reason" id="weekly_reason">Waiting for data...</div>
                 </div>
-                <!-- Monthly -->
                 <div class="bias-card">
                     <div class="bias-glow"></div>
                     <div class="bias-header">Monthly</div>
@@ -416,7 +401,6 @@
 
             <!-- Metrics Row -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-                <!-- Spot Index -->
                 <div class="glass-panel-3d py-3 px-4 flex justify-between items-center gold-border gold-hover">
                     <div>
                         <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
@@ -430,7 +414,6 @@
                     </div>
                 </div>
 
-                <!-- CFTC Positioning -->
                 <div class="lg:col-span-2 glass-panel-3d py-3 px-4 flex flex-col justify-between gold-border gold-hover">
                     <div class="flex justify-between items-center mb-0.5">
                         <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">CFTC Institutional Position Flow</span>
@@ -447,8 +430,8 @@
                 </div>
             </div>
 
-            <!-- Seasonality (simplified: only best and worst day) -->
-            <div class="glass-panel-3d p-3 rounded-xl gold-border gold-hover mb-4">
+            <!-- Seasonality -->
+            <div class="glass-panel-3d p-3 rounded-xl gold-border gold-hover">
                 <div class="flex justify-between items-center">
                     <span class="text-[8px] font-bold uppercase tracking-widest text-gold-400">Historical Seasonality</span>
                     <div class="flex items-center gap-3">
@@ -457,128 +440,23 @@
                     </div>
                 </div>
             </div>
-
-            <!-- News Feed -->
-            <div class="glass-panel p-4 rounded-xl shadow-xl gold-border">
-                <div class="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
-                    <div>
-                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-white">Central Bank Sentiment Feed</h3>
-                        <p class="text-[9px] text-gray-400 font-medium">Filtering live rate expectations & macro shifts</p>
-                    </div>
-                    <span class="text-[9px] font-bold bg-gold-950/60 text-gold-300 border border-gold-800/50 px-2 py-0.5 rounded shadow-sm">
-                        Avg Sentiment: <span id="news_sentiment" class="font-extrabold text-white ml-0.5">0.00</span>
-                    </span>
-                </div>
-                <ul id="headlines_container" class="space-y-1 text-[11px] text-gray-100">
-                    <li class="flex items-center space-x-2 text-gray-400 py-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse"></span>
-                        <span>Aggregating fundamental pipeline items...</span>
-                    </li>
-                </ul>
-            </div>
         </main>
-    </div>
-
-    <!-- Calendar Modal -->
-    <div id="calendar_modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-3 bg-black/85 backdrop-blur-md">
-        <div class="glass-panel w-full max-w-5xl max-h-[85vh] rounded-2xl overflow-hidden flex flex-col border border-gray-800/80">
-            <div class="px-4 py-3 border-b border-white/5 bg-[#12141c] flex justify-between items-center">
-                <div>
-                    <span class="text-[7px] font-bold tracking-widest text-gold-400 uppercase">NEKTA DL Intelligence</span>
-                    <h3 class="text-xs font-extrabold text-white uppercase">Activity Calendar Log</h3>
-                </div>
-                <button onclick="closeCalendarModal()" class="text-gray-400 hover:text-white font-black text-[10px] bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">✕ CLOSE</button>
-            </div>
-            <div class="p-2 sm:p-4 overflow-y-auto flex-grow bg-[#090a0f]/40">
-                <div id="calendar_frame_wrapper" class="calendar-frame w-full bg-[#131722] rounded-xl overflow-hidden p-1 border border-white/5"></div>
-            </div>
-        </div>
     </div>
 
     <script>
         // ================================================================
         // NOTIFICATIONS
         // ================================================================
-        // Request permission on load
         function requestNotificationPermission() {
-            if (!('Notification' in window)) {
-                console.log('This browser does not support notifications');
-                return;
-            }
-            if (Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-        }
-
-        // Send a browser notification
-        function sendNotification(title, body, tag = null) {
             if (!('Notification' in window)) return;
-            if (Notification.permission !== 'granted') return;
-            try {
-                const options = {
-                    body: body,
-                    icon: '/static/logo.jpg',
-                    silent: false,
-                };
-                if (tag) {
-                    options.tag = tag;
-                    options.renotify = false;
-                }
-                new Notification(title, options);
-            } catch (e) {
-                console.warn('Notification error:', e);
-            }
+            if (Notification.permission === 'default') Notification.requestPermission();
         }
 
-        // Track which alerts have already been notified
-        let notifiedAlertIds = new Set();
-
-        // Check for bias changes and send notifications
-        function checkBiasChanges(newBiases) {
-            if (!newBiases) return;
-            const timeframes = ['daily', 'weekly'];
-            timeframes.forEach(tf => {
-                const newBias = newBiases[tf];
-                if (!newBias || !newBias.bias) return;
-                const newBiasStr = newBias.bias.toUpperCase();
-                const key = `prev_${tf}_bias`;
-                const prevBiasStr = localStorage.getItem(key);
-                // If this is the first time (no previous), just store and skip
-                if (!prevBiasStr) {
-                    localStorage.setItem(key, newBiasStr);
-                    return;
-                }
-                if (prevBiasStr !== newBiasStr) {
-                    // Bias changed!
-                    const title = `🧠 ${tf.toUpperCase()} Bias Changed`;
-                    const body = `${prevBiasStr} → ${newBiasStr} (Score: ${newBias.score ?? 0})`;
-                    sendNotification(title, body, `bias-${tf}`);
-                    localStorage.setItem(key, newBiasStr);
-                }
-            });
-        }
-
-        // Check high-impact alerts and notify
-        async function checkAlerts(asset) {
+        function sendNotification(title, body, tag = null) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
             try {
-                const res = await fetch(`/alerts?asset=${asset}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                const alerts = data.alerts || [];
-                const now = new Date();
-                alerts.forEach(alert => {
-                    const eventId = alert.event + alert.time_utc;
-                    if (notifiedAlertIds.has(eventId)) return;
-                    if (alert.minutes_to_event <= 30 && alert.minutes_to_event >= 0) {
-                        const title = `🔔 High‑Impact Event: ${alert.event}`;
-                        const body = `${alert.currency} • ${alert.minutes_to_event} min away • Forecast: ${alert.forecast || 'N/A'}`;
-                        sendNotification(title, body, `alert-${eventId}`);
-                        notifiedAlertIds.add(eventId);
-                    }
-                });
-            } catch (e) {
-                console.warn('Alert check error:', e);
-            }
+                new Notification(title, { body, icon: '/static/logo.jpg', silent: false, tag });
+            } catch (e) {}
         }
 
         // ================================================================
@@ -588,10 +466,8 @@
         const dragHandle = document.getElementById('dragHandle');
         const mainContent = document.getElementById('mainContent');
         let isDragging = false;
-        let startX = 0;
-        let startWidth = 0;
+        let startX = 0, startWidth = 0;
         const SIDEBAR_MIN = 48, SIDEBAR_MAX = 280;
-
         let savedWidth = parseInt(localStorage.getItem('sidebarWidth')) || 220;
         savedWidth = Math.min(Math.max(savedWidth, SIDEBAR_MIN), SIDEBAR_MAX);
         sidebar.style.width = savedWidth + 'px';
@@ -639,7 +515,7 @@
         }
 
         // ================================================================
-        // LIVE CLOCK
+        // CLOCK
         // ================================================================
         function updateClock() {
             document.getElementById('liveTime').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -648,27 +524,11 @@
         setInterval(updateClock, 1000);
 
         // ================================================================
-        // CALENDAR MODAL
-        // ================================================================
-        function openCalendarModal() {
-            const wrapper = document.getElementById('calendar_frame_wrapper');
-            const filterCurrencies = currentAsset === 'btc' ? "USD" : "GBP,JPY,USD";
-            wrapper.innerHTML = `<iframe src="https://s.tradingview.com/embed-widget/events/?locale=en#%7B%22colorTheme%22%3A%22dark%22%2C%22isWidescreen%22%3Atrue%2C%22importanceFilter%22%3A%22-1%2C0%2C1%22%2C%22currencyFilter%22%3A%22${encodeURIComponent(filterCurrencies)}%22%7D" allowtransparency="true" scrolling="no"></iframe>`;
-            document.getElementById('calendar_modal').style.display = 'flex';
-        }
-        window.closeCalendarModal = function() {
-            document.getElementById('calendar_modal').style.display = 'none';
-            document.getElementById('calendar_frame_wrapper').innerHTML = '';
-        };
-        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCalendarModal(); });
-
-        // ================================================================
         // THEME TOGGLE
         // ================================================================
         const themeToggle = document.getElementById('themeToggle');
         let currentTheme = localStorage.getItem('theme') || 'dark';
         applyTheme(currentTheme);
-
         themeToggle.addEventListener('click', () => {
             const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             applyTheme(newTheme);
@@ -696,46 +556,11 @@
                 btnBTC.className = 'active';
                 btnGJ.className = '';
             }
-            const subTitle = document.getElementById('sub_title_asset') || document.createElement('span');
-            subTitle.id = 'sub_title_asset';
-            subTitle.style.display = 'none';
-            if (!document.getElementById('sub_title_asset')) document.body.appendChild(subTitle);
-
-            const liveSpotLabel = document.getElementById('live_spot_label');
-            const dailyTitle = document.getElementById('daily_title');
-            const monthlyTitle = document.getElementById('monthly_title');
-            const yearlyTitle = document.getElementById('yearly_title');
-            const monthlyVectorText = document.getElementById('monthly_vector_text');
-            const yearlyVectorText = document.getElementById('yearly_vector_text');
-            const newsFeedTitle = document.getElementById('news_feed_title');
-            const newsFeedSubtitle = document.getElementById('news_feed_subtitle');
-
-            if (asset === 'gj') {
-                subTitle.innerText = 'GBPJPY Fundamental Matrix';
-                liveSpotLabel.innerHTML = `<span class="w-1 h-1 bg-gold-400 rounded-full animate-ping"></span> Institutional Spot Index`;
-                dailyTitle.innerText = 'Daily Sentiment';
-                monthlyTitle.innerText = 'Positioning Matrix';
-                yearlyTitle.innerText = 'Monetary Anchor';
-                monthlyVectorText.innerText = 'Data Vector:';
-                yearlyVectorText.innerText = 'Spread Proxy:';
-                newsFeedTitle.innerText = 'Central Bank Sentiment Feed';
-                newsFeedSubtitle.innerText = 'Filtering live streams for BoE, BoJ, rate expectations, and inflation shocks';
-            } else {
-                subTitle.innerText = 'Bitcoin Liquidity Matrix';
-                liveSpotLabel.innerHTML = `<span class="w-1 h-1 bg-amber-400 rounded-full animate-ping"></span> BTC Index Price`;
-                dailyTitle.innerText = 'Orderflow / ETF Flow';
-                monthlyTitle.innerText = 'Positioning Matrix';
-                yearlyTitle.innerText = 'Monetary Anchor';
-                monthlyVectorText.innerText = 'Data Vector:';
-                yearlyVectorText.innerText = 'Liquidity Proxy:';
-                newsFeedTitle.innerText = 'Crypto Liquidity & Regulatory Feed';
-                newsFeedSubtitle.innerText = 'Filtering network indicators for ETF flows, Fed liquidity, and whale movements';
-            }
             fetchData();
         }
 
         // ================================================================
-        // DATA FETCHING (with notifications)
+        // DATA FETCHING (biases, price, CFTC, seasonality)
         // ================================================================
         async function fetchData() {
             try {
@@ -759,31 +584,12 @@
                     document.getElementById('cot_bar_shorts').style.width = `${cot.shorts_pct || 50}%`;
                 }
 
-                // ---- UPDATE BIAS CARDS ----
                 const biases = data.timeframe_bias;
                 if (biases) {
                     updateBiasCard('daily', biases.daily);
                     updateBiasCard('weekly', biases.weekly);
                     updateBiasCard('monthly', biases.monthly);
-                    // Check for bias changes (NOTIFICATIONS)
                     checkBiasChanges(biases);
-                }
-
-                // ---- Alerts (NOTIFICATIONS) ----
-                await checkAlerts(currentAsset);
-
-                const news = data.news_sentiment;
-                if (news) {
-                    document.getElementById('news_sentiment').innerText = news.average_score?.toFixed(2) || '0.00';
-                    const list = document.getElementById('headlines_container');
-                    list.innerHTML = "";
-                    if (news.sample_headlines && news.sample_headlines.length > 0) {
-                        news.sample_headlines.forEach(headline => {
-                            list.innerHTML += `<li class="news-item"><span class="bullet">◆</span><span>${headline}</span></li>`;
-                        });
-                    } else {
-                        list.innerHTML = `<li class="news-item text-gray-400"><span class="bullet">●</span><span>No framework matrix updates found in this execution cycle.</span></li>`;
-                    }
                 }
 
                 fetchSeasonality();
@@ -794,7 +600,6 @@
             }
         }
 
-        // ---- Helper: update a single bias card ----
         function updateBiasCard(timeframe, data) {
             const dotId = `#${timeframe}_dot`;
             const labelId = `#${timeframe}_label`;
@@ -847,7 +652,30 @@
             reason.innerText = reasonText;
         }
 
-        // ===== SEASONALITY (only best and worst) =====
+        function checkBiasChanges(newBiases) {
+            if (!newBiases) return;
+            ['daily', 'weekly'].forEach(tf => {
+                const newBias = newBiases[tf];
+                if (!newBias || !newBias.bias) return;
+                const newBiasStr = newBias.bias.toUpperCase();
+                const key = `prev_${tf}_bias`;
+                const prevBiasStr = localStorage.getItem(key);
+                if (!prevBiasStr) {
+                    localStorage.setItem(key, newBiasStr);
+                    return;
+                }
+                if (prevBiasStr !== newBiasStr) {
+                    const title = `🧠 ${tf.toUpperCase()} Bias Changed`;
+                    const body = `${prevBiasStr} → ${newBiasStr} (Score: ${newBias.score ?? 0})`;
+                    sendNotification(title, body, `bias-${tf}`);
+                    localStorage.setItem(key, newBiasStr);
+                }
+            });
+        }
+
+        // ================================================================
+        // SEASONALITY
+        // ================================================================
         async function fetchSeasonality() {
             try {
                 const res = await fetch(`/performance/weekday?asset=${currentAsset}`);
@@ -875,7 +703,9 @@
             }
         }
 
-        // ===== SYNC =====
+        // ================================================================
+        // SYNC
+        // ================================================================
         async function handleSyncClick() {
             const btn = document.querySelector('.topbar .right .gold-bg');
             btn.innerText = 'Syncing...';
@@ -886,27 +716,45 @@
         }
 
         // ================================================================
-        // INIT
+        // PWA: Register Service Worker & Install button
         // ================================================================
-        if (!document.getElementById('sub_title_asset')) {
-            const el = document.createElement('span');
-            el.id = 'sub_title_asset';
-            el.style.display = 'none';
-            document.body.appendChild(el);
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
         }
 
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Add an "Install" button to the topbar
+            const installBtn = document.createElement('button');
+            installBtn.innerText = '📱 Install';
+            installBtn.className = 'gold-bg';
+            installBtn.style.marginLeft = '0.5rem';
+            installBtn.onclick = () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choice) => {
+                    if (choice.outcome === 'accepted') console.log('App installed');
+                    deferredPrompt = null;
+                });
+            };
+            document.querySelector('.topbar .right').appendChild(installBtn);
+        });
+
+        // ================================================================
+        // INIT
+        // ================================================================
         window.onload = function() {
             requestNotificationPermission();
             fetchData();
-            // Check for new data every 60 seconds
             setInterval(fetchData, 60000);
-            // Check alerts separately every 30 seconds (more responsive)
-            setInterval(() => checkAlerts(currentAsset), 30000);
         };
 
         window.toggleSidebarMobile = toggleSidebarMobile;
-        window.openCalendarModal = openCalendarModal;
-        window.closeCalendarModal = closeCalendarModal;
         window.handleSyncClick = handleSyncClick;
         window.switchAsset = switchAsset;
         window.fetchData = fetchData;
