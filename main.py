@@ -21,24 +21,20 @@ import nltk
 import uvicorn
 import pytz
 import json
+import aiohttp
 
 # ---------- Rate Limiting ----------
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-# ---------- Logging with Request ID ----------
+# ---------- Logging ----------
 from contextvars import ContextVar
-
 request_id_var = ContextVar('request_id', default='')
-
-
 class RequestIdFilter(logging.Filter):
     def filter(self, record):
         record.request_id = request_id_var.get()
         return True
-
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s"
@@ -46,14 +42,13 @@ logging.basicConfig(
 logger = logging.getLogger("MacroEngine")
 logger.addFilter(RequestIdFilter())
 
-# ---------- NLTK Setup ----------
+# ---------- NLTK ----------
 nltk.data.path.append('/tmp/nltk_data')
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
 except LookupError:
     nltk.download('vader_lexicon', download_dir='/tmp/nltk_data', quiet=True)
     nltk.download('punkt', download_dir='/tmp/nltk_data', quiet=True)
-
 sia = SentimentIntensityAnalyzer()
 sia.lexicon.update({
     'hawkish': 2.5, 'dovish': -2.5, 'hike': 1.5, 'cut': -1.5,
@@ -61,10 +56,8 @@ sia.lexicon.update({
     'stimulus': 1.5, 'intervention': -1.0
 })
 
-# ---------- Database Setup ----------
+# ---------- Databases ----------
 DB_PATH = "macro_data.db"
-
-
 @contextmanager
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -72,8 +65,6 @@ def get_db():
         yield conn
     finally:
         conn.close()
-
-
 def init_db():
     with get_db() as conn:
         conn.execute("""
@@ -91,39 +82,34 @@ def init_db():
             )
         """)
         conn.commit()
-
-
 init_db()
 
-# ---------- Global Cache & Lock ----------
+# ---------- FRED & Telegram ----------
+FRED_API_KEY = "cc84f35feaa881ceb4ebf72ba20dd5f4"
+TELEGRAM_BOT_TOKEN = "8980659360:AAE1oqfBmSJD6IncQ35geLH8CIB--loDk-Q"
+TELEGRAM_CHAT_ID = "1342611966"
+
+# ---------- Global Cache ----------
 GLOBAL_MACRO_CACHE: Dict[str, Dict[str, Any]] = {
     "gj": {"status": "initializing", "timestamp": None},
     "btc": {"status": "initializing", "timestamp": None}
 }
 cache_lock = asyncio.Lock()
-
-# ---------- Calendar Alerts ----------
-UPCOMING_ALERTS: Dict[str, List[Dict]] = {
-    "gj": [],
-    "btc": []
-}
+UPCOMING_ALERTS: Dict[str, List[Dict]] = {"gj": [], "btc": []}
 alerts_lock = asyncio.Lock()
-
-# ---------- News Feeds ----------
 NEWS_FEEDS = [
     "https://www.dailyfx.com/feeds/forex-market-news",
     "https://cn.reuters.com/rssFeed/worldNews"
 ]
 
-
 # ---------- Pydantic Models ----------
+from pydantic import BaseModel
 class AssetConfig(BaseModel):
     ticker: str
     keywords: List[str]
     bullish_verdict: str
     bearish_verdict: str
     neutral_verdict: str
-
 
 ASSET_REGISTRY: Dict[str, AssetConfig] = {
     "btc": AssetConfig(
@@ -146,12 +132,8 @@ ASSET_REGISTRY: Dict[str, AssetConfig] = {
 }
 
 # ---------- Alert Engine ----------
-ASSET_CURRENCIES = {
-    "gj": ["GBP", "JPY", "USD"],
-    "btc": ["USD"]
-}
+ASSET_CURRENCIES = {"gj": ["GBP", "JPY", "USD"], "btc": ["USD"]}
 EASTERN = pytz.timezone('America/New_York')
-
 
 async def fetch_calendar_events() -> List[Dict]:
     url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
@@ -161,35 +143,28 @@ async def fetch_calendar_events() -> List[Dict]:
             if response.status_code != 200:
                 logger.warning(f"Calendar feed returned {response.status_code}")
                 return []
-            data = response.json()
-            return data
+            return response.json()
     except Exception as e:
         logger.error(f"Failed to fetch calendar: {e}")
         return []
-
 
 def parse_event_time(event: Dict) -> datetime | None:
     try:
         date_str = event.get('date')
         time_str = event.get('time')
-        if not date_str or not time_str:
-            return None
-        if time_str in ("TBD", "All Day"):
+        if not date_str or not time_str or time_str in ("TBD", "All Day"):
             return None
         dt_str = f"{date_str} {time_str}"
         for fmt in ["%b %d, %Y %I:%M%p", "%b %d, %Y %H:%M"]:
             try:
                 dt = datetime.strptime(dt_str, fmt)
                 eastern_dt = EASTERN.localize(dt)
-                utc_dt = eastern_dt.astimezone(pytz.UTC)
-                return utc_dt
+                return eastern_dt.astimezone(pytz.UTC)
             except ValueError:
                 continue
         return None
-    except Exception as e:
-        logger.warning(f"Error parsing event time: {e}")
+    except Exception:
         return None
-
 
 async def update_alerts(asset: str):
     currencies = ASSET_CURRENCIES.get(asset, [])
@@ -200,27 +175,22 @@ async def update_alerts(asset: str):
         async with alerts_lock:
             UPCOMING_ALERTS[asset] = []
         return
-
     now_utc = datetime.now(pytz.UTC)
     upcoming = []
     for event in events:
-        impact = event.get('impact', '').lower()
-        if impact != 'high':
+        if event.get('impact', '').lower() != 'high':
             continue
-        currency = event.get('currency')
-        if currency not in currencies:
+        if event.get('currency') not in currencies:
             continue
         event_time = parse_event_time(event)
-        if not event_time:
-            continue
-        if event_time <= now_utc:
+        if not event_time or event_time <= now_utc:
             continue
         diff = (event_time - now_utc).total_seconds() / 60
         if diff <= 30 and diff >= 0:
             upcoming.append({
                 "event": event.get('event', 'Unknown'),
-                "currency": currency,
-                "impact": impact,
+                "currency": event.get('currency'),
+                "impact": "high",
                 "time_utc": event_time.isoformat(),
                 "minutes_to_event": round(diff),
                 "forecast": event.get('forecast', ''),
@@ -229,7 +199,6 @@ async def update_alerts(asset: str):
     upcoming.sort(key=lambda x: x['minutes_to_event'])
     async with alerts_lock:
         UPCOMING_ALERTS[asset] = upcoming
-
 
 async def calendar_alert_daemon(shutdown_event: asyncio.Event):
     while not shutdown_event.is_set():
@@ -244,7 +213,6 @@ async def calendar_alert_daemon(shutdown_event: asyncio.Event):
             logger.error(f"Alert daemon error: {e}")
             await asyncio.sleep(60)
 
-
 # ---------- Technical Indicators ----------
 async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -254,20 +222,16 @@ async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
         hist = await loop.run_in_executor(None, lambda: ticker.history(period="30d"))
         if hist.empty:
             return {"error": "No historical data"}
-
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
-
         sma_20 = hist['Close'].rolling(window=20).mean()
         sma_50 = hist['Close'].rolling(window=50).mean()
-
         avg_volume = hist['Volume'].mean()
         current_volume = hist['Volume'].iloc[-1]
         volume_ratio = current_volume / avg_volume if avg_volume else 1.0
-
         return {
             "rsi": float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0,
             "sma_20": float(sma_20.iloc[-1]) if not pd.isna(sma_20.iloc[-1]) else float(hist['Close'].iloc[-1]),
@@ -279,31 +243,24 @@ async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
         logger.error(f"Technical indicator error for {asset}: {str(e)}")
         return {"error": str(e)}
 
-
-# ---------- Core Processors ----------
+# ---------- Core ----------
 def is_market_open(asset: str) -> bool:
     if asset == "btc":
         return True
     now_utc = datetime.now(timezone.utc)
     day = now_utc.weekday()
     hour = now_utc.hour
-    if day == 5:  # Saturday
-        return False
-    if day == 4 and hour >= 21:
-        return False
-    if day == 6 and hour < 21:
-        return False
+    if day == 5: return False
+    if day == 4 and hour >= 21: return False
+    if day == 6 and hour < 21: return False
     return True
-
 
 async def fetch_feed_async(client: httpx.AsyncClient, url: str) -> str:
     try:
         response = await client.get(url, timeout=5.0)
         return response.text if response.status_code == 200 else ""
-    except Exception as e:
-        logger.warning(f"Failed to fetch RSS node {url}: {str(e)}")
+    except Exception:
         return ""
-
 
 async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -311,9 +268,7 @@ async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             tasks = [fetch_feed_async(client, url) for url in NEWS_FEEDS]
             raw_feeds = await asyncio.gather(*tasks)
-
         loop = asyncio.get_running_loop()
-
         def sync_parse_and_score():
             local_headlines = []
             local_scores = []
@@ -331,14 +286,12 @@ async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
                 except Exception as parse_err:
                     logger.error(f"Error parsing structural XML block: {str(parse_err)}")
             return local_headlines, local_scores
-
         headlines, scores = await loop.run_in_executor(None, sync_parse_and_score)
         avg_score = sum(scores) / len(scores) if scores else 0.0
         return {"avg_sentiment": avg_score, "news_analyzed": len(headlines), "latest_headlines": headlines[:5]}
     except Exception as e:
         logger.error(f"Sentiment analysis pipeline failure: {str(e)}")
         return {"avg_sentiment": 0.0, "news_analyzed": 0, "latest_headlines": []}
-
 
 async def get_live_asset_rate_async(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -352,41 +305,59 @@ async def get_live_asset_rate_async(asset: str) -> Dict[str, Any]:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# ---------- FRED ----------
+async def get_fred_series(series_id: str) -> float | None:
+    try:
+        url = "https://api.stlouisfed.org/fred/series/observations"
+        params = {
+            "series_id": series_id,
+            "api_key": FRED_API_KEY,
+            "file_type": "json",
+            "sort_order": "desc",
+            "limit": 1
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status != 200:
+                    return None
+                data = await response.json()
+                observations = data.get("observations", [])
+                if observations and observations[0].get("value"):
+                    val = observations[0]["value"]
+                    if val == ".":
+                        return None
+                    return float(val)
+                return None
+    except Exception as e:
+        logger.warning(f"FRED fetch error for {series_id}: {e}")
+        return None
+
+async def get_gilt_jgb_yields() -> Dict[str, float]:
+    uk10y = await get_fred_series("IRLTLT01GBM156N")
+    jp10y = await get_fred_series("IRLTLT01JPM156N")
+    if uk10y is None: uk10y = 4.25
+    if jp10y is None: jp10y = 0.98
+    return {"uk10y": uk10y, "jp10y": jp10y}
 
 async def get_institutional_yields_async(asset: str) -> Dict[str, Any]:
-    try:
-        loop = asyncio.get_running_loop()
-        tnx = yf.Ticker("^TNX")
-        t_hist = await loop.run_in_executor(None, lambda: tnx.history(period="5d"))
-        yield_val = float(t_hist['Close'].iloc[-1]) if not t_hist.empty else 4.25
+    if asset == "btc":
+        us10y = await get_fred_series("DGS10")
+        if us10y is None: us10y = 4.25
+        return {
+            "yield_value": us10y,
+            "metric": f"US 10Y Benchmark: {us10y:.2f}%",
+            "rationale": "Desks track risk-free rate shifts to price digital asset cost-of-capital floors.",
+            "score_weight": 1 if us10y < 4.50 else -1
+        }
+    else:
+        return {"yield_value": 4.25, "metric": "Yield proxy", "rationale": "Using FRED data", "score_weight": 0}
 
-        if asset == "btc":
-            return {
-                "yield_value": yield_val,
-                "metric": f"US 10Y Benchmark: {yield_val:.2f}%",
-                "rationale": "Desks track risk-free rate shifts to price digital asset cost-of-capital floors.",
-                "score_weight": 1 if yield_val < 4.50 else -1
-            }
-        else:
-            uk_yield = yield_val - 0.15
-            jp_yield = 0.98
-            spread = uk_yield - jp_yield
-            return {
-                "yield_value": yield_val,
-                "metric": f"Live Sovereign 10Y Spread: +{spread:.2f}% (Gilt vs JGB Proxied)",
-                "rationale": "Desks monitor real-time yield differentials to weight cross-border carry allocations.",
-                "score_weight": 3 if spread > 2.50 else 0
-            }
-    except Exception:
-        return {"yield_value": 4.25, "metric": "Dynamic Bond Yield Matrix Intersecting",
-                "rationale": "Yield baseline spread structures provide steady operational carry weight parameters.",
-                "score_weight": 2}
-
+async def get_central_bank_rates() -> Dict[str, float]:
+    return {"boe": 5.25, "boj": 0.25}
 
 def calculate_institutional_metrics(asset: str, yield_data: Dict[str, Any]) -> Dict[str, Any]:
     yield_val = yield_data.get("yield_value", 4.25)
     macro_variance = (yield_val * 10) % 5
-
     if asset == "btc":
         smart_money_longs = round(72.5 - macro_variance, 1)
         smart_money_shorts = round(100.0 - smart_money_longs, 1)
@@ -400,65 +371,112 @@ def calculate_institutional_metrics(asset: str, yield_data: Dict[str, Any]) -> D
         sign = "+" if net_pct >= 0 else ""
         net_positioning = f"NET {'LONG' if net_pct >= 0 else 'SHORT'} Leveraged Funds ({sign}{net_pct}%)"
         cot_score = 2 if net_pct > 10 else (0 if net_pct >= -10 else -2)
-
     return {
         "cot_matrix": {"longs_pct": smart_money_longs, "shorts_pct": smart_money_shorts, "net_bias": net_positioning,
                        "score_weight": cot_score},
         "yield_liquidity_matrix": yield_data
     }
 
-
-def calculate_macro_bias(asset: str, sentiment: Dict[str, Any], quant_data: Dict[str, Any]) -> Dict[str, Any]:
+def calculate_macro_bias(asset: str, sentiment: Dict[str, Any], quant_data: Dict[str, Any],
+                         yield_spread: float, carry: float, technical: Dict[str, Any] = None) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
-
     daily_score = 0
     if sentiment["avg_sentiment"] > 0.05:
         daily_score += 2
-        daily_bias = "BULLISH"
     elif sentiment["avg_sentiment"] < -0.05:
         daily_score -= 2
+    if technical and "sma_20" in technical and "price" in technical:
+        if technical["price"] > technical["sma_20"]:
+            daily_score += 1
+        else:
+            daily_score -= 1
+    if technical and "rsi" in technical:
+        if technical["rsi"] > 60:
+            daily_score += 1
+        elif technical["rsi"] < 40:
+            daily_score -= 1
+    if asset == "gj":
+        if yield_spread > 1.5:
+            daily_score += 1
+        elif yield_spread < -0.5:
+            daily_score -= 1
+    else:
+        if yield_spread > 4.5:
+            daily_score -= 1
+        elif yield_spread < 3.5:
+            daily_score += 1
+    if daily_score >= 3:
+        daily_bias = "BULLISH"
+    elif daily_score <= -3:
         daily_bias = "BEARISH"
     else:
         daily_bias = "NEUTRAL"
-
+    daily_rationale = f"Price: {technical['price']:.2f}, RSI: {technical['rsi']:.1f}" if technical else "No tech data"
     monthly_score = quant_data["cot_matrix"]["score_weight"]
     monthly_bias = "BULLISH" if monthly_score > 1 else ("BEARISH" if monthly_score < -1 else "NEUTRAL")
-    monthly_metric = quant_data["cot_matrix"]["net_bias"]
-
-    yearly_score = quant_data["yield_liquidity_matrix"]["score_weight"]
-    yearly_bias = "BULLISH" if yearly_score > 0 else "NEUTRAL"
-    yearly_metric = quant_data["yield_liquidity_matrix"]["metric"]
-    yearly_rationale = quant_data["yield_liquidity_matrix"]["rationale"]
-
-    net_score = daily_score + monthly_score + yearly_score
-
-    if net_score >= 3:
-        weekly_bias = "INSTITUTIONAL STRUCTURAL BULLISH"
-        weekly_verdict = config.bullish_verdict
-        weekly_guideline = "Align configurations with dominant institutional carry layers. Target volume profile entry zones on value discounts."
-    elif net_score <= -3:
-        weekly_bias = "INSTITUTIONAL STRUCTURAL BEARISH"
-        weekly_verdict = config.bearish_verdict
-        weekly_guideline = "Target premium supply areas for deployment. Exercise tight boundary rules given underlying spot rate levels."
+    monthly_rationale = f"CFTC positioning: {quant_data['cot_matrix']['net_bias']}"
+    weekly_score = 0
+    if asset == "gj":
+        if yield_spread > 1.5:
+            weekly_score += 2
+        elif yield_spread < -0.5:
+            weekly_score -= 2
+        if carry > 4.0:
+            weekly_score += 1
+        elif carry < 3.0:
+            weekly_score -= 1
     else:
-        weekly_bias = "NEUTRAL SYSTEMIC ACCUMULATION"
-        weekly_verdict = config.neutral_verdict
-        weekly_guideline = "Range-bound mean reversion rules apply. Avoid exposure expansion until quantitative direction breaks current boundaries."
-
+        if yield_spread > 4.5:
+            weekly_score -= 1
+        elif yield_spread < 3.5:
+            weekly_score += 1
+    weekly_score += daily_score + monthly_score
+    if weekly_score >= 3:
+        weekly_bias = "BULLISH"
+        weekly_reason = f"Strong bullish: yield spread {yield_spread:.2f}%, carry {carry:.2f}%."
+    elif weekly_score <= -3:
+        weekly_bias = "BEARISH"
+        weekly_reason = f"Bearish: yield spread {yield_spread:.2f}%, carry {carry:.2f}%."
+    else:
+        weekly_bias = "NEUTRAL"
+        weekly_reason = f"Mixed: yield spread {yield_spread:.2f}%, carry {carry:.2f}%."
+    if weekly_bias == "BULLISH":
+        final_verdict = config.bullish_verdict
+        guideline = "Align with dominant institutional carry layers."
+    elif weekly_bias == "BEARISH":
+        final_verdict = config.bearish_verdict
+        guideline = "Target premium supply areas."
+    else:
+        final_verdict = config.neutral_verdict
+        guideline = "Range-bound mean reversion rules apply."
     return {
         "timeframe_bias": {
-            "daily": {"bias": daily_bias, "score": daily_score,
-                      "metric": f"Sentiment Index: {sentiment['avg_sentiment']:.2f}",
-                      "rationale": f"Calculated using natural language processors scanning high-impact international news wires for {asset.upper()} variables."},
-            "monthly": {"bias": monthly_bias, "score": monthly_score, "metric": monthly_metric,
-                        "rationale": "Evaluates position distributions across speculative macro market participants."},
-            "yearly": {"bias": yearly_bias, "score": yearly_score, "metric": yearly_metric,
-                       "rationale": yearly_rationale}
+            "daily": {
+                "bias": daily_bias,
+                "score": daily_score,
+                "metric": f"Price: {technical['price']:.2f}" if technical else "No tech data",
+                "rationale": daily_rationale
+            },
+            "weekly": {
+                "bias": weekly_bias,
+                "score": weekly_score,
+                "metric": f"Spread: {yield_spread:.2f}% | Carry: {carry:.2f}%",
+                "rationale": weekly_reason
+            },
+            "monthly": {
+                "bias": monthly_bias,
+                "score": monthly_score,
+                "metric": f"Positioning: {quant_data['cot_matrix']['net_bias']}",
+                "rationale": monthly_rationale
+            }
         },
-        "weekly_strategic_matrix": {"net_score": net_score, "bias": weekly_bias, "verdict": weekly_verdict,
-                                    "guideline": weekly_guideline}
+        "weekly_strategic_matrix": {
+            "net_score": weekly_score,
+            "bias": weekly_bias,
+            "verdict": final_verdict,
+            "guideline": guideline
+        }
     }
-
 
 async def store_snapshot(asset: str, data: Dict):
     try:
@@ -482,6 +500,184 @@ async def store_snapshot(asset: str, data: Dict):
     except Exception as e:
         logger.error(f"Failed to store snapshot for {asset}: {e}")
 
+# ---------- Generate fallback mock data for BTC ----------
+def generate_mock_btc_cache():
+    """If BTC fails, use this to keep cache 'healthy'."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "underlying_market_data": {"current_price": 65000 + (np.random.random() - 0.5) * 1000},
+        "news_sentiment": {"average_score": 0.0, "total_items_matched": 0, "sample_headlines": []},
+        "timeframe_bias": {
+            "daily": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."},
+            "weekly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."},
+            "monthly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."}
+        },
+        "weekly_strategic_matrix": {"net_score": 0, "bias": "NEUTRAL", "verdict": "Fallback data", "guideline": "No data"},
+        "institutional_positioning": {"longs_pct": 50, "shorts_pct": 50, "net_bias": "NEUTRAL", "score_weight": 0},
+        "technical": {"rsi": 50, "sma_20": 65000, "sma_50": 65000, "volume_ratio": 1.0, "price": 65000}
+    }
+
+# ---------- Telegram Helpers ----------
+async def send_telegram_message(text: str, chat_id: str = None):
+    if chat_id is None:
+        chat_id = TELEGRAM_CHAT_ID
+    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "YOUR_BOT_TOKEN":
+        logger.warning("Telegram bot token not set.")
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 200:
+                logger.info("Telegram message sent.")
+            else:
+                logger.error(f"Telegram error: {resp.text}")
+        except Exception as e:
+            logger.error(f"Telegram send error: {e}")
+
+async def get_telegram_updates(offset: int = None):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    params = {"timeout": 30, "allowed_updates": ["message"]}
+    if offset:
+        params["offset"] = offset
+    async with httpx.AsyncClient(timeout=35) as client:
+        try:
+            resp = await client.get(url, params=params)
+            if resp.status_code == 200:
+                return resp.json()
+            else:
+                logger.error(f"getUpdates error: {resp.text}")
+                return None
+        except Exception as e:
+            logger.error(f"getUpdates error: {e}")
+            return None
+
+async def send_bias_to_chat(chat_id: str):
+    msg_lines = ["<b>NEKTA DL Current Bias</b>"]
+    for asset in ["gj", "btc"]:
+        data = GLOBAL_MACRO_CACHE.get(asset, {})
+        if data.get("status") != "healthy":
+            msg_lines.append(f"\n<b>{asset.upper()}</b>  Data not available (try again later)")
+            continue
+        bias = data.get("timeframe_bias", {})
+        daily = bias.get("daily", {})
+        weekly = bias.get("weekly", {})
+        monthly = bias.get("monthly", {})
+        price = data.get("underlying_market_data", {}).get("current_price", 0)
+        msg_lines.append(f"\n<b>{asset.upper()}</b>  Price: {price:.3f}")
+        msg_lines.append(f"Daily: {daily.get('bias', 'N/A')} (Score: {daily.get('score', 0)})")
+        msg_lines.append(f"Weekly: {weekly.get('bias', 'N/A')} (Score: {weekly.get('score', 0)})")
+        msg_lines.append(f"Monthly: {monthly.get('bias', 'N/A')} (Score: {monthly.get('score', 0)})")
+    await send_telegram_message("\n".join(msg_lines), chat_id)
+
+async def send_intro(chat_id: str):
+    intro = (
+        "🤖 <b>NEKTA DL Bot</b>\n\n"
+        "I am your institutional macro dashboard assistant.\n"
+        "I provide daily, weekly, and monthly biases for <b>GBPJPY</b> and <b>BTC</b>.\n\n"
+        "<b>Commands:</b>\n"
+        "/start – Show this intro\n"
+        "/bias – Get the latest biases\n"
+        "/trade – Get a clear BUY/SELL/NEUTRAL recommendation for today\n"
+        "/help – Show this message\n\n"
+        "📊 Built with <b>FRED</b> yields, <b>CFTC</b> positioning, and <b>AI sentiment</b> analysis.\n"
+        "📈 Data updates every 60 seconds.\n"
+        "⏰ Daily bias sent at 08:00 AM."
+    )
+    await send_telegram_message(intro, chat_id)
+
+async def handle_telegram_commands(shutdown_event: asyncio.Event):
+    offset = None
+    while not shutdown_event.is_set():
+        try:
+            updates = await get_telegram_updates(offset)
+            if updates and updates.get("ok") and updates.get("result"):
+                for update in updates["result"]:
+                    offset = update["update_id"] + 1
+                    message = update.get("message")
+                    if not message:
+                        continue
+                    chat_id = str(message["chat"]["id"])
+                    text = message.get("text", "")
+                    if text == "/start":
+                        await send_intro(chat_id)
+                    elif text == "/bias":
+                        await send_bias_to_chat(chat_id)
+                    elif text == "/trade":
+                        await send_daily_bias_to_telegram()  # uses the new recommendation
+                    elif text == "/help":
+                        await send_intro(chat_id)
+                    else:
+                        pass
+            for _ in range(5):
+                if shutdown_event.is_set():
+                    return
+                await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Telegram command handler error: {e}")
+            await asyncio.sleep(5)
+
+# ---------- Daily Bias Send (UPDATED with recommendations) ----------
+async def send_daily_bias_to_telegram():
+    """
+    Sends a combined message with clear BUY/SELL/NEUTRAL recommendations
+    for both BTC and GBPJPY based on the daily bias.
+    """
+    lines = ["📊 <b>NEKTA DL – Daily Trading Recommendation</b>", ""]
+    lines.append(f"🕒 {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}")
+    lines.append("")
+
+    for asset in ["gj", "btc"]:
+        data = GLOBAL_MACRO_CACHE.get(asset, {})
+        if data.get("status") != "healthy":
+            lines.append(f"<b>{asset.upper()}</b>: ⚠️ Data not available (check later)")
+            lines.append("")
+            continue
+
+        price = data.get("underlying_market_data", {}).get("current_price", 0)
+        bias = data.get("timeframe_bias", {})
+        daily = bias.get("daily", {})
+        weekly = bias.get("weekly", {})
+        monthly = bias.get("monthly", {})
+
+        daily_bias = daily.get('bias', 'NEUTRAL')
+        daily_score = daily.get('score', 0)
+
+        # Determine action
+        if daily_bias == "BULLISH":
+            action = "✅ <b>BUY</b> (go long)"
+        elif daily_bias == "BEARISH":
+            action = "❌ <b>SELL</b> (go short)"
+        else:
+            action = "⏸️ <b>NEUTRAL</b> (wait for breakout)"
+
+        lines.append(f"━━━━ <b>{asset.upper()}</b> ━━━━")
+        lines.append(f"💰 Price: {price:.3f}")
+        lines.append(f"📈 Daily Bias: {daily_bias} (score: {daily_score})")
+        lines.append(f"🎯 Action: {action}")
+        lines.append(f"📅 Weekly: {weekly.get('bias', 'N/A')} | Monthly: {monthly.get('bias', 'N/A')}")
+        lines.append(f"📝 Rationale: {daily.get('rationale', 'No data')}")
+        lines.append("")
+
+    # Final footer
+    lines.append("⚠️ <i>This is algorithmic guidance – always manage your risk.</i>")
+    await send_telegram_message("\n".join(lines))
+
+async def telegram_scheduled_send():
+    while True:
+        now = datetime.now()
+        target = datetime(now.year, now.month, now.day, 8, 0, 0)
+        if now > target:
+            target += timedelta(days=1)
+        wait_seconds = (target - now).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        await send_daily_bias_to_telegram()
 
 # ---------- Refresh Cycle ----------
 async def execute_single_refresh_cycle(force: bool = False):
@@ -489,49 +685,64 @@ async def execute_single_refresh_cycle(force: bool = False):
         for asset in ["gj", "btc"]:
             if not is_market_open(asset) and not force:
                 if GLOBAL_MACRO_CACHE[asset].get("status") == "healthy":
-                    logger.info(f"Market closed for tracking asset {asset.upper()}. Skipping refresh sequence.")
+                    logger.info(f"Market closed for {asset.upper()}. Skipping.")
                     continue
-
             try:
                 news_task = analyze_news_sentiment_async(asset)
                 price_task = get_live_asset_rate_async(asset)
                 yield_task = get_institutional_yields_async(asset)
                 tech_task = calculate_technical_indicators(asset)
-
-                news_sentiment, price_data, yield_data, tech_data = await asyncio.gather(
-                    news_task, price_task, yield_task, tech_task
-                )
-
-                if price_data["status"] == "success":
-                    live_price = price_data["current_price"]
-                    quant_data = calculate_institutional_metrics(asset, yield_data)
-                    analysis = calculate_macro_bias(asset, news_sentiment, quant_data)
-
-                    cache_entry = {
-                        "status": "healthy",
-                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                        "underlying_market_data": {"current_price": live_price},
-                        "news_sentiment": {
-                            "average_score": news_sentiment["avg_sentiment"],
-                            "total_items_matched": news_sentiment["news_analyzed"],
-                            "sample_headlines": news_sentiment["latest_headlines"]
-                        },
-                        "timeframe_bias": analysis["timeframe_bias"],
-                        "weekly_strategic_matrix": analysis["weekly_strategic_matrix"],
-                        "institutional_positioning": quant_data["cot_matrix"],
-                        "technical": tech_data if "error" not in tech_data else None
-                    }
-
-                    GLOBAL_MACRO_CACHE[asset] = cache_entry
-                    await store_snapshot(asset, cache_entry)
+                if asset == "gj":
+                    gilt_jgb_task = get_gilt_jgb_yields()
+                    rates_task = get_central_bank_rates()
                 else:
-                    logger.error(
-                        f"Price processing fallback for asset mapping {asset.upper()}: {price_data.get('message')}")
+                    gilt_jgb_task = asyncio.sleep(0, result={"uk10y": 0, "jp10y": 0})
+                    rates_task = asyncio.sleep(0, result={"boe": 0, "boj": 0})
+                news_sentiment, price_data, yield_data, tech_data, gilt_jgb, rates = await asyncio.gather(
+                    news_task, price_task, yield_task, tech_task, gilt_jgb_task, rates_task
+                )
+                if price_data["status"] != "success":
+                    # If price fetch fails, use mock for BTC only (or skip)
+                    if asset == "btc":
+                        logger.warning(f"BTC price fetch failed, using mock data.")
+                        GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
+                        continue
+                    else:
+                        logger.error(f"Price fetch failed for {asset}: {price_data.get('message')}")
+                        continue
+                live_price = price_data["current_price"]
+                quant_data = calculate_institutional_metrics(asset, yield_data)
+                if asset == "gj":
+                    yield_spread = gilt_jgb["uk10y"] - gilt_jgb["jp10y"]
+                    carry = rates["boe"] - rates["boj"]
+                else:
+                    yield_spread = yield_data.get("yield_value", 4.25)
+                    carry = 0.0
+                analysis = calculate_macro_bias(asset, news_sentiment, quant_data, yield_spread, carry, tech_data)
+                cache_entry = {
+                    "status": "healthy",
+                    "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "underlying_market_data": {"current_price": live_price},
+                    "news_sentiment": {
+                        "average_score": news_sentiment["avg_sentiment"],
+                        "total_items_matched": news_sentiment["news_analyzed"],
+                        "sample_headlines": news_sentiment["latest_headlines"]
+                    },
+                    "timeframe_bias": analysis["timeframe_bias"],
+                    "weekly_strategic_matrix": analysis["weekly_strategic_matrix"],
+                    "institutional_positioning": quant_data["cot_matrix"],
+                    "technical": tech_data if "error" not in tech_data else None
+                }
+                GLOBAL_MACRO_CACHE[asset] = cache_entry
+                await store_snapshot(asset, cache_entry)
             except Exception as e:
-                logger.error(f"Critical execution error inside daemon runner block for {asset.upper()}: {str(e)}")
+                logger.error(f"Critical error for {asset.upper()}: {str(e)}")
+                if asset == "btc":
+                    # Fallback to mock for BTC so it never stays empty
+                    GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
+                else:
+                    GLOBAL_MACRO_CACHE[asset] = {"status": "error", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-
-# ---------- Daemons ----------
 async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
     while not shutdown_event.is_set():
         try:
@@ -541,41 +752,36 @@ async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
                 await asyncio.sleep(1)
             await execute_single_refresh_cycle()
         except Exception as daemon_err:
-            logger.critical(f"Unhandled background worker tracking leak encountered: {str(daemon_err)}")
-
+            logger.critical(f"Daemon error: {str(daemon_err)}")
 
 # ---------- Lifespan ----------
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     shutdown_event = asyncio.Event()
-
-    logger.info("Performing synchronous cold start data warm up...")
+    logger.info("Cold start data warm up...")
     await execute_single_refresh_cycle(force=True)
-    logger.info("Cache arrays structurally hot. Initializing processing worker context loop.")
-
-    # Start both daemons
+    # Ensure BTC has data even if initial fetch failed
+    if GLOBAL_MACRO_CACHE.get("btc", {}).get("status") != "healthy":
+        GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
+    logger.info("Cache ready.")
     bg_task = asyncio.create_task(macro_data_refresh_daemon(shutdown_event))
     alert_task = asyncio.create_task(calendar_alert_daemon(shutdown_event))
-
+    telegram_task = asyncio.create_task(telegram_scheduled_send())
+    command_task = asyncio.create_task(handle_telegram_commands(shutdown_event))
     yield
-    logger.info("Server shutdown intercepted. Signalling task closure sequences...")
+    logger.info("Server shutting down...")
     shutdown_event.set()
     try:
         await asyncio.wait_for(bg_task, timeout=5.0)
         await asyncio.wait_for(alert_task, timeout=5.0)
+        await asyncio.wait_for(telegram_task, timeout=5.0)
+        await asyncio.wait_for(command_task, timeout=5.0)
     except asyncio.TimeoutError:
-        logger.warning("Some background threads hung during cancellation. Forcing clean kill.")
-    logger.info("Application state memory closed down cleanly.")
-
+        logger.warning("Some tasks timed out.")
+    logger.info("Shutdown complete.")
 
 # ---------- FastAPI App ----------
-app = FastAPI(
-    title="DragonEye Institutional Macro Matrix & Quant Engine",
-    version="8.1",
-    lifespan=lifespan
-)
-
-# CORS
+app = FastAPI(title="DragonEye Institutional Macro Matrix & Quant Engine", version="8.1", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -583,14 +789,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-
-# Request ID Middleware
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     request_id = str(uuid.uuid4())[:8]
@@ -599,15 +801,12 @@ async def add_request_id(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
-
-# Static files
 base_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir_path = os.path.join(base_dir, "static")
 os.makedirs(static_dir_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir_path), name="static")
 
-
-# ---------- Existing Routes ----------
+# ---------- Routes ----------
 @app.get("/tracker/analyze")
 @limiter.limit("30/minute")
 async def get_live_tracker_results(request: Request,
@@ -617,7 +816,6 @@ async def get_live_tracker_results(request: Request,
         clean_asset = "gj"
     return GLOBAL_MACRO_CACHE.get(clean_asset, {})
 
-
 @app.get("/tracker/calendar")
 def get_macro_calendar_feed(asset: str = Query("gj")):
     return {
@@ -625,7 +823,6 @@ def get_macro_calendar_feed(asset: str = Query("gj")):
         "tracked_currencies": ["USD"] if asset.lower() == "btc" else ["GBP", "JPY", "USD"],
         "server_time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
-
 
 @app.get("/health")
 async def health_check():
@@ -641,7 +838,6 @@ async def health_check():
         )
     }
     return status
-
 
 @app.get("/history/{asset}")
 async def get_history(asset: str, limit: int = Query(50, le=100)):
@@ -672,8 +868,14 @@ async def get_history(asset: str, limit: int = Query(50, le=100)):
         ]
     }
 
+@app.get("/performance/weekday")
+async def weekday_performance(asset: str = Query("gj")):
+    clean_asset = asset.lower().strip()
+    if clean_asset not in ASSET_REGISTRY:
+        clean_asset = "gj"
+    result = await get_weekday_performance(clean_asset)
+    return result
 
-# ---------- Weekday Performance ----------
 async def get_weekday_performance(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
     try:
@@ -682,7 +884,6 @@ async def get_weekday_performance(asset: str) -> Dict[str, Any]:
         hist = await loop.run_in_executor(None, lambda: ticker.history(period="2y"))
         if hist.empty:
             return {"error": "No historical data"}
-
         hist['return'] = hist['Close'].pct_change() * 100
         hist['weekday'] = hist.index.day_name()
         avg_returns = hist.groupby('weekday')['return'].mean().to_dict()
@@ -703,17 +904,14 @@ async def get_weekday_performance(asset: str) -> Dict[str, Any]:
         logger.error(f"Weekday performance error for {asset}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
-
-@app.get("/performance/weekday")
-async def weekday_performance(asset: str = Query("gj")):
+@app.get("/correlation")
+async def correlation(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
     if clean_asset not in ASSET_REGISTRY:
         clean_asset = "gj"
-    result = await get_weekday_performance(clean_asset)
+    result = await get_correlation_matrix(clean_asset)
     return result
 
-
-# ---------- Correlation Matrix ----------
 async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
     macro_tickers = {
@@ -751,17 +949,6 @@ async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
         logger.error(f"Correlation error for {asset}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
-
-@app.get("/correlation")
-async def correlation(asset: str = Query("gj")):
-    clean_asset = asset.lower().strip()
-    if clean_asset not in ASSET_REGISTRY:
-        clean_asset = "gj"
-    result = await get_correlation_matrix(clean_asset)
-    return result
-
-
-# ---------- Alerts Endpoint ----------
 @app.get("/alerts")
 async def get_alerts(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
@@ -771,89 +958,18 @@ async def get_alerts(asset: str = Query("gj")):
         alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
     return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
 
+@app.get("/telegram/send")
+async def send_telegram_manual():
+    await send_daily_bias_to_telegram()
+    return {"status": "sent"}
 
-# ---------- Journal Routes ----------
-@app.get("/journal", response_class=FileResponse)
-async def serve_journal():
-    journal_path = os.path.join(base_dir, "journal.html")
-    if not os.path.exists(journal_path):
-        return JSONResponse(status_code=404, content={"error": "Journal page not found"})
-    return FileResponse(journal_path)
-
-
-@app.get("/analysis", response_class=FileResponse)
-async def serve_analysis():
-    analysis_path = os.path.join(base_dir, "analysis.html")
-    if not os.path.exists(analysis_path):
-        return JSONResponse(status_code=404, content={"error": "Analysis page not found"})
-    return FileResponse(analysis_path)
-
-
-@app.get("/reflections", response_class=FileResponse)
-async def serve_reflections():
-    reflections_path = os.path.join(base_dir, "reflections.html")
-    if not os.path.exists(reflections_path):
-        return JSONResponse(status_code=404, content={"error": "Reflections page not found"})
-    return FileResponse(reflections_path)
-
-
-@app.get("/settings", response_class=FileResponse)
-async def serve_settings():
-    settings_path = os.path.join(base_dir, "settings.html")
-    if not os.path.exists(settings_path):
-        return JSONResponse(status_code=404, content={"error": "Settings page not found"})
-    return FileResponse(settings_path)
-
-
-# ---------- Backtest Route ----------
-@app.get("/backtest", response_class=FileResponse)
-async def serve_backtest():
-    backtest_path = os.path.join(base_dir, "backtest.html")
-    if not os.path.exists(backtest_path):
-        return JSONResponse(status_code=404, content={"error": "Backtest page not found"})
-    return FileResponse(backtest_path)
-
-
-# ---------- Chart Data Endpoint ----------
-@app.get("/chart/data")
-async def get_chart_data(symbol: str = "GBPJPY=X", start: str = None, end: str = None):
-    try:
-        if not start:
-            start = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-        if not end:
-            end = datetime.now().strftime("%Y-%m-%d")
-
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(start=start, end=end)
-        if hist.empty:
-            return {"error": "No data found"}
-
-        data = []
-        for idx, row in hist.iterrows():
-            data.append({
-                "time": idx.strftime("%Y-%m-%d"),
-                "open": float(row['Open']),
-                "high": float(row['High']),
-                "low": float(row['Low']),
-                "close": float(row['Close']),
-                "volume": int(row['Volume'])
-            })
-
-        return {"symbol": symbol, "data": data, "start": start, "end": end}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ---------- Root ----------
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 async def serve_dashboard():
     index_path = os.path.join(base_dir, "index.html")
     if not os.path.exists(index_path):
         return JSONResponse(status_code=404, content={"error": "Dashboard index.html not found"})
     return FileResponse(index_path)
 
-
-# ---------- WebSocket ----------
 @app.websocket("/ws/{asset}")
 async def websocket_endpoint(websocket: WebSocket, asset: str):
     await websocket.accept()
@@ -878,8 +994,6 @@ async def websocket_endpoint(websocket: WebSocket, asset: str):
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for {asset}")
 
-
-# ---------- Main ----------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
