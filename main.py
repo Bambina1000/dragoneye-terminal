@@ -30,11 +30,16 @@ from slowapi.errors import RateLimitExceeded
 
 # ---------- Logging ----------
 from contextvars import ContextVar
+
 request_id_var = ContextVar('request_id', default='')
+
+
 class RequestIdFilter(logging.Filter):
     def filter(self, record):
         record.request_id = request_id_var.get()
         return True
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(request_id)s] %(message)s"
@@ -58,6 +63,8 @@ sia.lexicon.update({
 
 # ---------- Databases ----------
 DB_PATH = "macro_data.db"
+
+
 @contextmanager
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -65,6 +72,8 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
 def init_db():
     with get_db() as conn:
         conn.execute("""
@@ -82,12 +91,15 @@ def init_db():
             )
         """)
         conn.commit()
+
+
 init_db()
 
 # ---------- FRED & Telegram ----------
-FRED_API_KEY = "cc84f35feaa881ceb4ebf72ba20dd5f4"
-TELEGRAM_BOT_TOKEN = "8980659360:AAE1oqfBmSJD6IncQ35geLH8CIB--loDk-Q"
-TELEGRAM_CHAT_ID = "1342611966"
+# Use environment variables for security (optional but recommended)
+FRED_API_KEY = os.getenv("FRED_API_KEY", "cc84f35feaa881ceb4ebf72ba20dd5f4")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8980659360:AAE1oqfBmSJD6IncQ35geLH8CIB--loDk-Q")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1342611966")
 
 # ---------- Global Cache ----------
 GLOBAL_MACRO_CACHE: Dict[str, Dict[str, Any]] = {
@@ -104,12 +116,15 @@ NEWS_FEEDS = [
 
 # ---------- Pydantic Models ----------
 from pydantic import BaseModel
+
+
 class AssetConfig(BaseModel):
     ticker: str
     keywords: List[str]
     bullish_verdict: str
     bearish_verdict: str
     neutral_verdict: str
+
 
 ASSET_REGISTRY: Dict[str, AssetConfig] = {
     "btc": AssetConfig(
@@ -135,6 +150,7 @@ ASSET_REGISTRY: Dict[str, AssetConfig] = {
 ASSET_CURRENCIES = {"gj": ["GBP", "JPY", "USD"], "btc": ["USD"]}
 EASTERN = pytz.timezone('America/New_York')
 
+
 async def fetch_calendar_events() -> List[Dict]:
     url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
     try:
@@ -147,6 +163,7 @@ async def fetch_calendar_events() -> List[Dict]:
     except Exception as e:
         logger.error(f"Failed to fetch calendar: {e}")
         return []
+
 
 def parse_event_time(event: Dict) -> datetime | None:
     try:
@@ -165,6 +182,7 @@ def parse_event_time(event: Dict) -> datetime | None:
         return None
     except Exception:
         return None
+
 
 async def update_alerts(asset: str):
     currencies = ASSET_CURRENCIES.get(asset, [])
@@ -200,6 +218,7 @@ async def update_alerts(asset: str):
     async with alerts_lock:
         UPCOMING_ALERTS[asset] = upcoming
 
+
 async def calendar_alert_daemon(shutdown_event: asyncio.Event):
     while not shutdown_event.is_set():
         try:
@@ -212,6 +231,7 @@ async def calendar_alert_daemon(shutdown_event: asyncio.Event):
         except Exception as e:
             logger.error(f"Alert daemon error: {e}")
             await asyncio.sleep(60)
+
 
 # ---------- Technical Indicators ----------
 async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
@@ -243,6 +263,7 @@ async def calculate_technical_indicators(asset: str) -> Dict[str, Any]:
         logger.error(f"Technical indicator error for {asset}: {str(e)}")
         return {"error": str(e)}
 
+
 # ---------- Core ----------
 def is_market_open(asset: str) -> bool:
     if asset == "btc":
@@ -255,12 +276,14 @@ def is_market_open(asset: str) -> bool:
     if day == 6 and hour < 21: return False
     return True
 
+
 async def fetch_feed_async(client: httpx.AsyncClient, url: str) -> str:
     try:
         response = await client.get(url, timeout=5.0)
         return response.text if response.status_code == 200 else ""
     except Exception:
         return ""
+
 
 async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -269,6 +292,7 @@ async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
             tasks = [fetch_feed_async(client, url) for url in NEWS_FEEDS]
             raw_feeds = await asyncio.gather(*tasks)
         loop = asyncio.get_running_loop()
+
         def sync_parse_and_score():
             local_headlines = []
             local_scores = []
@@ -286,12 +310,14 @@ async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
                 except Exception as parse_err:
                     logger.error(f"Error parsing structural XML block: {str(parse_err)}")
             return local_headlines, local_scores
+
         headlines, scores = await loop.run_in_executor(None, sync_parse_and_score)
         avg_score = sum(scores) / len(scores) if scores else 0.0
         return {"avg_sentiment": avg_score, "news_analyzed": len(headlines), "latest_headlines": headlines[:5]}
     except Exception as e:
         logger.error(f"Sentiment analysis pipeline failure: {str(e)}")
         return {"avg_sentiment": 0.0, "news_analyzed": 0, "latest_headlines": []}
+
 
 async def get_live_asset_rate_async(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -304,6 +330,7 @@ async def get_live_asset_rate_async(asset: str) -> Dict[str, Any]:
         return {"current_price": float(hist['Close'].iloc[-1]), "status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # ---------- FRED ----------
 async def get_fred_series(series_id: str) -> float | None:
@@ -332,12 +359,14 @@ async def get_fred_series(series_id: str) -> float | None:
         logger.warning(f"FRED fetch error for {series_id}: {e}")
         return None
 
+
 async def get_gilt_jgb_yields() -> Dict[str, float]:
     uk10y = await get_fred_series("IRLTLT01GBM156N")
     jp10y = await get_fred_series("IRLTLT01JPM156N")
     if uk10y is None: uk10y = 4.25
     if jp10y is None: jp10y = 0.98
     return {"uk10y": uk10y, "jp10y": jp10y}
+
 
 async def get_institutional_yields_async(asset: str) -> Dict[str, Any]:
     if asset == "btc":
@@ -352,8 +381,10 @@ async def get_institutional_yields_async(asset: str) -> Dict[str, Any]:
     else:
         return {"yield_value": 4.25, "metric": "Yield proxy", "rationale": "Using FRED data", "score_weight": 0}
 
+
 async def get_central_bank_rates() -> Dict[str, float]:
     return {"boe": 5.25, "boj": 0.25}
+
 
 def calculate_institutional_metrics(asset: str, yield_data: Dict[str, Any]) -> Dict[str, Any]:
     yield_val = yield_data.get("yield_value", 4.25)
@@ -376,6 +407,7 @@ def calculate_institutional_metrics(asset: str, yield_data: Dict[str, Any]) -> D
                        "score_weight": cot_score},
         "yield_liquidity_matrix": yield_data
     }
+
 
 def calculate_macro_bias(asset: str, sentiment: Dict[str, Any], quant_data: Dict[str, Any],
                          yield_spread: float, carry: float, technical: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -478,6 +510,7 @@ def calculate_macro_bias(asset: str, sentiment: Dict[str, Any], quant_data: Dict
         }
     }
 
+
 async def store_snapshot(asset: str, data: Dict):
     try:
         with get_db() as conn:
@@ -500,6 +533,7 @@ async def store_snapshot(asset: str, data: Dict):
     except Exception as e:
         logger.error(f"Failed to store snapshot for {asset}: {e}")
 
+
 # ---------- Generate fallback mock data for BTC ----------
 def generate_mock_btc_cache():
     """If BTC fails, use this to keep cache 'healthy'."""
@@ -509,14 +543,19 @@ def generate_mock_btc_cache():
         "underlying_market_data": {"current_price": 65000 + (np.random.random() - 0.5) * 1000},
         "news_sentiment": {"average_score": 0.0, "total_items_matched": 0, "sample_headlines": []},
         "timeframe_bias": {
-            "daily": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."},
-            "weekly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."},
-            "monthly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data", "rationale": "BTC data unavailable, using fallback."}
+            "daily": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data",
+                      "rationale": "BTC data unavailable, using fallback."},
+            "weekly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data",
+                       "rationale": "BTC data unavailable, using fallback."},
+            "monthly": {"bias": "NEUTRAL", "score": 0, "metric": "Mock data",
+                        "rationale": "BTC data unavailable, using fallback."}
         },
-        "weekly_strategic_matrix": {"net_score": 0, "bias": "NEUTRAL", "verdict": "Fallback data", "guideline": "No data"},
+        "weekly_strategic_matrix": {"net_score": 0, "bias": "NEUTRAL", "verdict": "Fallback data",
+                                    "guideline": "No data"},
         "institutional_positioning": {"longs_pct": 50, "shorts_pct": 50, "net_bias": "NEUTRAL", "score_weight": 0},
         "technical": {"rsi": 50, "sma_20": 65000, "sma_50": 65000, "volume_ratio": 1.0, "price": 65000}
     }
+
 
 # ---------- Telegram Helpers ----------
 async def send_telegram_message(text: str, chat_id: str = None):
@@ -541,6 +580,7 @@ async def send_telegram_message(text: str, chat_id: str = None):
         except Exception as e:
             logger.error(f"Telegram send error: {e}")
 
+
 async def get_telegram_updates(offset: int = None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
     params = {"timeout": 30, "allowed_updates": ["message"]}
@@ -557,6 +597,7 @@ async def get_telegram_updates(offset: int = None):
         except Exception as e:
             logger.error(f"getUpdates error: {e}")
             return None
+
 
 async def send_bias_to_chat(chat_id: str):
     msg_lines = ["<b>NEKTA DL Current Bias</b>"]
@@ -576,6 +617,7 @@ async def send_bias_to_chat(chat_id: str):
         msg_lines.append(f"Monthly: {monthly.get('bias', 'N/A')} (Score: {monthly.get('score', 0)})")
     await send_telegram_message("\n".join(msg_lines), chat_id)
 
+
 async def send_intro(chat_id: str):
     intro = (
         "🤖 <b>NEKTA DL Bot</b>\n\n"
@@ -591,6 +633,7 @@ async def send_intro(chat_id: str):
         "⏰ Daily bias sent at 08:00 AM."
     )
     await send_telegram_message(intro, chat_id)
+
 
 async def handle_telegram_commands(shutdown_event: asyncio.Event):
     offset = None
@@ -610,7 +653,7 @@ async def handle_telegram_commands(shutdown_event: asyncio.Event):
                     elif text == "/bias":
                         await send_bias_to_chat(chat_id)
                     elif text == "/trade":
-                        await send_daily_bias_to_telegram()  # uses the new recommendation
+                        await send_daily_bias_to_telegram()
                     elif text == "/help":
                         await send_intro(chat_id)
                     else:
@@ -623,7 +666,8 @@ async def handle_telegram_commands(shutdown_event: asyncio.Event):
             logger.error(f"Telegram command handler error: {e}")
             await asyncio.sleep(5)
 
-# ---------- Daily Bias Send (UPDATED with recommendations) ----------
+
+# ---------- Daily Bias Send (with recommendations) ----------
 async def send_daily_bias_to_telegram():
     """
     Sends a combined message with clear BUY/SELL/NEUTRAL recommendations
@@ -669,6 +713,7 @@ async def send_daily_bias_to_telegram():
     lines.append("⚠️ <i>This is algorithmic guidance – always manage your risk.</i>")
     await send_telegram_message("\n".join(lines))
 
+
 async def telegram_scheduled_send():
     while True:
         now = datetime.now()
@@ -678,6 +723,7 @@ async def telegram_scheduled_send():
         wait_seconds = (target - now).total_seconds()
         await asyncio.sleep(wait_seconds)
         await send_daily_bias_to_telegram()
+
 
 # ---------- Refresh Cycle ----------
 async def execute_single_refresh_cycle(force: bool = False):
@@ -702,7 +748,6 @@ async def execute_single_refresh_cycle(force: bool = False):
                     news_task, price_task, yield_task, tech_task, gilt_jgb_task, rates_task
                 )
                 if price_data["status"] != "success":
-                    # If price fetch fails, use mock for BTC only (or skip)
                     if asset == "btc":
                         logger.warning(f"BTC price fetch failed, using mock data.")
                         GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
@@ -738,10 +783,10 @@ async def execute_single_refresh_cycle(force: bool = False):
             except Exception as e:
                 logger.error(f"Critical error for {asset.upper()}: {str(e)}")
                 if asset == "btc":
-                    # Fallback to mock for BTC so it never stays empty
                     GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
                 else:
                     GLOBAL_MACRO_CACHE[asset] = {"status": "error", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 
 async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
     while not shutdown_event.is_set():
@@ -754,16 +799,26 @@ async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
         except Exception as daemon_err:
             logger.critical(f"Daemon error: {str(daemon_err)}")
 
-# ---------- Lifespan ----------
+
+# ---------- Lifespan (FIXED with try/except) ----------
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     shutdown_event = asyncio.Event()
     logger.info("Cold start data warm up...")
-    await execute_single_refresh_cycle(force=True)
+
+    # --- THE FIX: wrap the refresh cycle in try/except ---
+    try:
+        await execute_single_refresh_cycle(force=True)
+    except Exception as e:
+        logger.error(f"Startup refresh cycle failed: {e}")
+        # App continues; cache will be filled by fallback logic below
+    # --- END FIX ---
+
     # Ensure BTC has data even if initial fetch failed
     if GLOBAL_MACRO_CACHE.get("btc", {}).get("status") != "healthy":
         GLOBAL_MACRO_CACHE["btc"] = generate_mock_btc_cache()
     logger.info("Cache ready.")
+
     bg_task = asyncio.create_task(macro_data_refresh_daemon(shutdown_event))
     alert_task = asyncio.create_task(calendar_alert_daemon(shutdown_event))
     telegram_task = asyncio.create_task(telegram_scheduled_send())
@@ -780,6 +835,7 @@ async def lifespan(fastapi_app: FastAPI):
         logger.warning("Some tasks timed out.")
     logger.info("Shutdown complete.")
 
+
 # ---------- FastAPI App ----------
 app = FastAPI(title="DragonEye Institutional Macro Matrix & Quant Engine", version="8.1", lifespan=lifespan)
 app.add_middleware(
@@ -793,6 +849,7 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     request_id = str(uuid.uuid4())[:8]
@@ -801,10 +858,12 @@ async def add_request_id(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
+
 base_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir_path = os.path.join(base_dir, "static")
 os.makedirs(static_dir_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir_path), name="static")
+
 
 # ---------- Routes ----------
 @app.get("/tracker/analyze")
@@ -816,6 +875,7 @@ async def get_live_tracker_results(request: Request,
         clean_asset = "gj"
     return GLOBAL_MACRO_CACHE.get(clean_asset, {})
 
+
 @app.get("/tracker/calendar")
 def get_macro_calendar_feed(asset: str = Query("gj")):
     return {
@@ -823,6 +883,7 @@ def get_macro_calendar_feed(asset: str = Query("gj")):
         "tracked_currencies": ["USD"] if asset.lower() == "btc" else ["GBP", "JPY", "USD"],
         "server_time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
+
 
 @app.get("/health")
 async def health_check():
@@ -838,6 +899,7 @@ async def health_check():
         )
     }
     return status
+
 
 @app.get("/history/{asset}")
 async def get_history(asset: str, limit: int = Query(50, le=100)):
@@ -868,6 +930,7 @@ async def get_history(asset: str, limit: int = Query(50, le=100)):
         ]
     }
 
+
 @app.get("/performance/weekday")
 async def weekday_performance(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
@@ -875,6 +938,7 @@ async def weekday_performance(asset: str = Query("gj")):
         clean_asset = "gj"
     result = await get_weekday_performance(clean_asset)
     return result
+
 
 async def get_weekday_performance(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -904,6 +968,7 @@ async def get_weekday_performance(asset: str) -> Dict[str, Any]:
         logger.error(f"Weekday performance error for {asset}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
+
 @app.get("/correlation")
 async def correlation(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
@@ -911,6 +976,7 @@ async def correlation(asset: str = Query("gj")):
         clean_asset = "gj"
     result = await get_correlation_matrix(clean_asset)
     return result
+
 
 async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
     config = ASSET_REGISTRY[asset]
@@ -949,6 +1015,7 @@ async def get_correlation_matrix(asset: str) -> Dict[str, Any]:
         logger.error(f"Correlation error for {asset}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
+
 @app.get("/alerts")
 async def get_alerts(asset: str = Query("gj")):
     clean_asset = asset.lower().strip()
@@ -958,10 +1025,12 @@ async def get_alerts(asset: str = Query("gj")):
         alerts = UPCOMING_ALERTS.get(clean_asset, []).copy()
     return {"asset": clean_asset, "alerts": alerts, "timestamp": datetime.now(pytz.UTC).isoformat()}
 
+
 @app.get("/telegram/send")
 async def send_telegram_manual():
     await send_daily_bias_to_telegram()
     return {"status": "sent"}
+
 
 @app.get("/")
 async def serve_dashboard():
@@ -969,6 +1038,7 @@ async def serve_dashboard():
     if not os.path.exists(index_path):
         return JSONResponse(status_code=404, content={"error": "Dashboard index.html not found"})
     return FileResponse(index_path)
+
 
 @app.websocket("/ws/{asset}")
 async def websocket_endpoint(websocket: WebSocket, asset: str):
@@ -993,6 +1063,7 @@ async def websocket_endpoint(websocket: WebSocket, asset: str):
             await websocket.send_json({"type": "alerts", "data": alerts})
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for {asset}")
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
