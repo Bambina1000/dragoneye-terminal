@@ -30,7 +30,6 @@ from slowapi.errors import RateLimitExceeded
 
 # ---------- Logging ----------
 from contextvars import ContextVar
-
 request_id_var = ContextVar('request_id', default='')
 
 
@@ -96,7 +95,7 @@ def init_db():
 init_db()
 
 # ---------- FRED & Telegram ----------
-# Use environment variables for security (optional but recommended)
+# Use environment variables for security
 FRED_API_KEY = os.getenv("FRED_API_KEY", "cc84f35feaa881ceb4ebf72ba20dd5f4")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8980659360:AAE1oqfBmSJD6IncQ35geLH8CIB--loDk-Q")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1342611966")
@@ -277,11 +276,21 @@ def is_market_open(asset: str) -> bool:
     return True
 
 
+# --- FIXED: fetch_feed_async now follows redirects and handles errors gracefully ---
 async def fetch_feed_async(client: httpx.AsyncClient, url: str) -> str:
     try:
-        response = await client.get(url, timeout=5.0)
-        return response.text if response.status_code == 200 else ""
-    except Exception:
+        # follow_redirects=True ensures we get the final content even if the URL redirects
+        response = await client.get(url, timeout=10.0, follow_redirects=True)
+        if response.status_code == 200:
+            return response.text
+        else:
+            logger.warning(f"Feed fetch returned {response.status_code} for {url}")
+            return ""
+    except httpx.TimeoutException:
+        logger.warning(f"Timeout fetching {url}")
+        return ""
+    except Exception as e:
+        logger.warning(f"Feed fetch error for {url}: {e}")
         return ""
 
 
@@ -308,7 +317,7 @@ async def analyze_news_sentiment_async(asset: str) -> Dict[str, Any]:
                             local_headlines.append(title)
                             local_scores.append(sia.polarity_scores(title_lower)['compound'])
                 except Exception as parse_err:
-                    logger.error(f"Error parsing structural XML block: {str(parse_err)}")
+                    logger.error(f"Error parsing feed: {str(parse_err)}")
             return local_headlines, local_scores
 
         headlines, scores = await loop.run_in_executor(None, sync_parse_and_score)
@@ -800,19 +809,16 @@ async def macro_data_refresh_daemon(shutdown_event: asyncio.Event):
             logger.critical(f"Daemon error: {str(daemon_err)}")
 
 
-# ---------- Lifespan (FIXED with try/except) ----------
+# ---------- Lifespan (with try/except) ----------
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     shutdown_event = asyncio.Event()
     logger.info("Cold start data warm up...")
 
-    # --- THE FIX: wrap the refresh cycle in try/except ---
     try:
         await execute_single_refresh_cycle(force=True)
     except Exception as e:
         logger.error(f"Startup refresh cycle failed: {e}")
-        # App continues; cache will be filled by fallback logic below
-    # --- END FIX ---
 
     # Ensure BTC has data even if initial fetch failed
     if GLOBAL_MACRO_CACHE.get("btc", {}).get("status") != "healthy":
