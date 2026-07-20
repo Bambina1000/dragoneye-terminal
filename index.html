@@ -716,33 +716,50 @@
         }
 
         // ================================================================
-        // PWA: Register Service Worker & Install button
+        // PWA: Service Worker + Install Button (ALWAYS VISIBLE)
         // ================================================================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
+                    .then(reg => console.log('Service Worker registered ✅'))
+                    .catch(err => console.log('Service Worker registration failed ❌', err));
             });
         }
 
+        // Add a permanent install button to the top bar
+        document.addEventListener('DOMContentLoaded', () => {
+            const installBtn = document.createElement('button');
+            installBtn.innerText = '📱 Install App';
+            installBtn.className = 'gold-bg';
+            installBtn.id = 'installBtn';
+            installBtn.style.marginLeft = '0.5rem';
+            installBtn.style.display = 'inline-block';
+
+            installBtn.addEventListener('click', async () => {
+                if (window.deferredPrompt) {
+                    // Use the browser's install prompt
+                    window.deferredPrompt.prompt();
+                    const result = await window.deferredPrompt.userChoice;
+                    if (result.outcome === 'accepted') {
+                        console.log('App installed ✅');
+                        installBtn.style.display = 'none';
+                    }
+                    window.deferredPrompt = null;
+                } else {
+                    // Fallback instructions for manual install
+                    alert('📱 To install this app:\n\n1. Open in Chrome\n2. Tap the "Share" icon\n3. Select "Add to Home Screen"');
+                }
+            });
+
+            document.querySelector('.topbar .right').appendChild(installBtn);
+        });
+
+        // Store the deferred prompt for later use
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Add an "Install" button to the topbar
-            const installBtn = document.createElement('button');
-            installBtn.innerText = '📱 Install';
-            installBtn.className = 'gold-bg';
-            installBtn.style.marginLeft = '0.5rem';
-            installBtn.onclick = () => {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choice) => {
-                    if (choice.outcome === 'accepted') console.log('App installed');
-                    deferredPrompt = null;
-                });
-            };
-            document.querySelector('.topbar .right').appendChild(installBtn);
+            console.log('Install prompt captured ✅');
         });
 
         // ================================================================
